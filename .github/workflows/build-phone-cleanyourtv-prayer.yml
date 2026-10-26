@@ -121,6 +121,7 @@ jobs:
       - name: Build modified CleanYourTV phone APK
         working-directory: phone
         run: |
+          export PATH="$ANDROID_HOME/build-tools/36.0.0:$ANDROID_HOME/build-tools/34.0.0:$PATH"
           ./gradlew --no-daemon :app:assembleFullDebug
           APK="$(find app/build/outputs/apk/full/debug -maxdepth 1 -name '*.apk' -print -quit)"
           test -n "$APK"

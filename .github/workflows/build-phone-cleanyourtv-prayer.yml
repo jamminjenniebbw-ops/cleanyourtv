@@ -1,0 +1,139 @@
+name: Build CleanYourTV phone app with Bandung prayer times
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
+      - "launcher/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout launcher source and workflow
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-34,platforms;android-36,build-tools;34.0.0,build-tools;36.0.0
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Get CleanYourTV phone app source (v0.3.7)
+        run: |
+          git clone --recurse-submodules --branch v0.3.7 https://github.com/udhaykumarbala/cleanyourtv-app.git phone
+          git -C phone/third_party/cleanyourtv fetch https://github.com/jamminjenniebbw-ops/cleanyourtv.git 9e22e77b22d7184bebee55fc89f7896ec4bba694
+          git -C phone/third_party/cleanyourtv checkout --detach FETCH_HEAD
+          echo "LAUNCHER_COMMIT=$(git -C phone/third_party/cleanyourtv rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build modified CleanYourTV launcher
+        working-directory: phone/third_party/cleanyourtv/launcher
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease -PlauncherApplicationId=com.gathin.tvhome
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/phone/android/platform/src/main/assets/bundled/cleanyourtv-launcher.apk"
+
+      - name: Build matching TV curtain with the same debug signing key
+        working-directory: phone
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :tv:curtain:assembleDebug
+          CURTAIN_APK="$(find tv/curtain/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$CURTAIN_APK"
+          cp "$CURTAIN_APK" android/platform/src/main/assets/bundled/cleanyourtv-curtain.apk
+
+      - name: Update the bundled APK trust pins for this custom build
+        working-directory: phone
+        run: |
+          export PATH="$ANDROID_HOME/build-tools/36.0.0:$ANDROID_HOME/build-tools/34.0.0:$PATH"
+          python3 - <<'PY'
+          import hashlib, os, re, subprocess
+          from pathlib import Path
+          root = Path(".")
+          pins_path = root / "core/trust/src/main/kotlin/tv/cleanyour/core/trust/Pins.kt"
+          pins = pins_path.read_text()
+          launcher = root / "android/platform/src/main/assets/bundled/cleanyourtv-launcher.apk"
+          curtain = root / "android/platform/src/main/assets/bundled/cleanyourtv-curtain.apk"
+          launcher_commit = os.environ["LAUNCHER_COMMIT"]
+          def metadata(path):
+              data = path.read_bytes()
+              out = subprocess.check_output(["apksigner", "verify", "--verbose", "--print-certs", str(path)], text=True)
+              match = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)", out)
+              if not match:
+                  raise SystemExit("Could not read APK signer digest for " + str(path) + "\n" + out)
+              return len(data), hashlib.sha256(data).hexdigest(), match.group(1).lower()
+          ls, lh, signer = metadata(launcher)
+          cs, ch, curtain_signer = metadata(curtain)
+          if signer != curtain_signer:
+              raise SystemExit("Launcher and curtain were not signed with the same debug key")
+          def patch(obj, key, value):
+              global pins
+              start = pins.index("object " + obj + " {")
+              end = pins.index("\n}", start)
+              block = pins[start:end]
+              pattern = r'(const val ' + re.escape(key) + r'\s*=\s*)(?:"[^"]*"|[0-9][0-9_]*L?)'
+              block, n = re.subn(pattern, lambda m: m.group(1) + value, block, count=1)
+              if n != 1:
+                  raise SystemExit("Could not update " + obj + "." + key)
+              pins = pins[:start] + block + pins[end:]
+          patch("PinnedLauncher", "UPSTREAM_COMMIT", '"' + launcher_commit + '"')
+          patch("PinnedLauncher", "VERSION_CODE", "9L")
+          patch("PinnedLauncher", "VERSION_NAME", '"3.0"')
+          patch("PinnedLauncher", "SIZE", str(ls) + "L")
+          patch("PinnedLauncher", "SHA256", '"' + lh + '"')
+          patch("PinnedLauncher", "SIGNER_SHA256", '"' + signer + '"')
+          patch("PinnedCurtain", "SIZE", str(cs) + "L")
+          patch("PinnedCurtain", "SHA256", '"' + ch + '"')
+          pins_path.write_text(pins)
+          print(f"Launcher: size={ls}, sha256={lh}, signer={signer}, commit={launcher_commit}")
+          print(f"Curtain: size={cs}, sha256={ch}, signer={curtain_signer}")
+          PY
+
+      - name: Keep the modified phone app separate from the original install
+        working-directory: phone
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("app/build.gradle.kts")
+          s = p.read_text()
+          pattern = r'(create\("full"\)\s*\{\s*dimension = "store"\s*isDefault = true)'
+          s, n = re.subn(pattern, r'\1\n            applicationIdSuffix = ".prayer"', s, count=1)
+          if n != 1:
+              raise SystemExit("Could not add the .prayer application ID suffix")
+          p.write_text(s)
+          PY
+
+      - name: Build modified CleanYourTV phone APK
+        working-directory: phone
+        run: |
+          ./gradlew --no-daemon :app:assembleFullDebug
+          APK="$(find app/build/outputs/apk/full/debug -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$APK"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp "$APK" "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Bandung.apk"
+          cp android/platform/src/main/assets/bundled/cleanyourtv-launcher.apk "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Launcher.apk"
+          apksigner verify --verbose "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Bandung.apk"
+          sha256sum "$GITHUB_WORKSPACE/out/"*.apk
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: CleanYourTV-Prayer-Bandung-APKs
+          path: out/*.apk
+          if-no-files-found: error
+          retention-days: 14

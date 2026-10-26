@@ -36,12 +36,10 @@ jobs:
       - name: Get CleanYourTV phone app source (v0.3.7)
         run: |
           git clone --recurse-submodules --branch v0.3.7 https://github.com/udhaykumarbala/cleanyourtv-app.git phone
-          git -C phone/third_party/cleanyourtv fetch https://github.com/jamminjenniebbw-ops/cleanyourtv.git 9e22e77b22d7184bebee55fc89f7896ec4bba694
-          git -C phone/third_party/cleanyourtv checkout --detach FETCH_HEAD
-          echo "LAUNCHER_COMMIT=$(git -C phone/third_party/cleanyourtv rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "LAUNCHER_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Build modified CleanYourTV launcher
-        working-directory: phone/third_party/cleanyourtv/launcher
+        working-directory: launcher
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease -PlauncherApplicationId=com.gathin.tvhome

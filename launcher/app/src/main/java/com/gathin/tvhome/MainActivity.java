@@ -841,6 +841,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent())) openInputsIfAsked(getIntent());
+        // WallpaperPlayer and the launcher's other root-level layers are created after the XML layout.
+        // Keep the prayer panel above those layers so it remains visible on Home.
+        if (prayerTimesPanel != null) prayerTimesPanel.bringToFront();
     }
 
     /**

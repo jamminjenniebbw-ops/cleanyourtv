@@ -114,18 +114,31 @@ final class WallpaperPlayer {
         File first = WallpaperRotation.find(playable, previous);
         if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
         while (first != null) {
-            Bitmap bitmap = decode(first);
-            if (bitmap != null) {
-                show(bitmap);
-                // The picture covers the whole screen: the root's plain colour under it is overdraw.
-                root.setBackground(null);
-                displayed = first.getName();
-                showCaption(false);
-                if (!displayed.equals(previous)) {
-                    preferences.edit().putString("image", displayed)
-                            .putLong("changed", System.currentTimeMillis()).apply();
+            if (isGif(first)) {
+                AnimatedImageDrawable gif = decodeGif(first);
+                if (gif != null) {
+                    show(gif);
+                    displayed = first.getName();
+                    showCaption(false);
+                    if (!displayed.equals(previous)) {
+                        preferences.edit().putString("image", displayed)
+                                .putLong("changed", System.currentTimeMillis()).apply();
+                    }
+                    return;
                 }
-                return;
+            } else {
+                Bitmap bitmap = decode(first);
+                if (bitmap != null) {
+                    show(bitmap);
+                    root.setBackground(null);
+                    displayed = first.getName();
+                    showCaption(false);
+                    if (!displayed.equals(previous)) {
+                        preferences.edit().putString("image", displayed)
+                                .putLong("changed", System.currentTimeMillis()).apply();
+                    }
+                    return;
+                }
             }
             files.remove(first);   // unreadable or over 4K: try another, or keep the plain colour
             playable = playable();

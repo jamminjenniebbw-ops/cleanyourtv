@@ -10,7 +10,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.FrameLayout;
 import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -34,52 +33,53 @@ final class PrayerTimesPanel {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
     private LocalDate loadedDate;    /**
-     * Insert the panel into the Home column immediately above the app grid. This reserves real layout
-     * space: it cannot cover app labels and it never moves when RecyclerView scrolls.
+     * Overlay in the same upper-right Home position as the original version.
+     * It is deliberately not part of the scrolling app column.
      */
-    static PrayerTimesPanel attach(Activity a, LinearLayout homeColumn, View gridFrame) {
+    static PrayerTimesPanel attach(Activity a, FrameLayout root) {
         PrayerTimesPanel p = new PrayerTimesPanel(a);
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
-        int panelWidth = Math.min((int)(760*d), (int)(screenWidth * .70f));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(panelWidth, -2);
-        lp.gravity = Gravity.END;
-        lp.rightMargin = (int)(8*d);
-        lp.bottomMargin = (int)(8*d);
-        int gridIndex = homeColumn.indexOfChild(gridFrame);
-        if (gridIndex < 0) gridIndex = homeColumn.getChildCount();
-        homeColumn.addView(p.panel, gridIndex, lp);
+        int panelWidth = Math.min((int)(650*d), (int)(screenWidth * .54f));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, -2,
+                Gravity.TOP | Gravity.END);
+        lp.topMargin = (int)(142*d);
+        lp.rightMargin = (int)(48*d);
+        root.addView(p.panel, lp);
         p.load();
         p.handler.postDelayed(p.tick, 1_000L);
         return p;
     }
 
-    /** Kept for compatibility with callers; the panel is now part of the vertical layout, not an overlay. */
     void bringToFront() {
         panel.bringToFront();
         panel.invalidate();
     }
 
-    /** The panel is outside RecyclerView, so scrolling the app grid must never move it. */
-    void onGridScrolled(int verticalOffsetPx) {
-        panel.setTranslationY(0f);
+    void hideForNavigation() {
+        panel.setVisibility(View.GONE);
+    }
+
+    void showAtHomeTop() {
         panel.setVisibility(View.VISIBLE);
     }
 
-
+    void onGridScrolled(int verticalOffsetPx) {
+        if (verticalOffsetPx > 0) hideForNavigation();
+    }
 
     private PrayerTimesPanel(Activity a) {
         activity = a;
         panel = new LinearLayout(a);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(15), dp(11), dp(15), dp(11));
+        panel.setPadding(dp(12), dp(8), dp(12), dp(8));
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xD92A4055, 0xD91B2B3E});
-        bg.setCornerRadius(dp(22));
+                new int[]{0x992A4055, 0x991B2B3E});
+        bg.setCornerRadius(dp(18));
         bg.setStroke(dp(1), 0x557FA9C8);
         panel.setBackground(bg);
-        panel.setElevation(dp(8));
+        panel.setElevation(dp(5));
 
         LinearLayout header = new LinearLayout(a);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -91,9 +91,9 @@ final class PrayerTimesPanel {
         identity.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(identity, new LinearLayout.LayoutParams(0, -2, 1f));
 
-        TextView title = text("Jadwal Sholat", 16, Color.WHITE, true);
+        TextView title = text("Jadwal Sholat", 14, Color.WHITE, true);
         identity.addView(title, wrap());
-        TextView location = text("Bandung, Jawa Barat", 10, 0xD6E4EDF5, false);
+        TextView location = text("Bandung, Jawa Barat", 9, 0xD6E4EDF5, false);
         LinearLayout.LayoutParams locp = wrap();
         locp.topMargin = dp(5);
         identity.addView(location, locp);
@@ -104,10 +104,10 @@ final class PrayerTimesPanel {
         upcoming.setPadding(dp(18), 0, 0, 0);
         header.addView(upcoming, wrap());
 
-        nextName = text("Sholat Berikutnya", 10, 0xFFFFD98A, true);
+        nextName = text("Sholat Berikutnya", 9, 0xFFFFD98A, true);
         nextName.setGravity(Gravity.END);
         upcoming.addView(nextName, wrap());
-        next = text("--:--:--", 18, 0xFFFFE3A6, true);
+        next = text("--:--:--", 16, 0xFFFFE3A6, true);
         next.setGravity(Gravity.END);
         LinearLayout.LayoutParams np = wrap();
         np.topMargin = dp(4);
@@ -116,8 +116,8 @@ final class PrayerTimesPanel {
         View divider = new View(a);
         divider.setBackgroundColor(0x557FA9C8);
         LinearLayout.LayoutParams dpv = new LinearLayout.LayoutParams(-1, dp(1));
-        dpv.topMargin = dp(8);
-        dpv.bottomMargin = dp(8);
+        dpv.topMargin = dp(6);
+        dpv.bottomMargin = dp(6);
         panel.addView(divider, dpv);
 
         LinearLayout row = new LinearLayout(a);
@@ -130,25 +130,25 @@ final class PrayerTimesPanel {
             LinearLayout card = new LinearLayout(a);
             card.setOrientation(LinearLayout.VERTICAL);
             card.setGravity(Gravity.CENTER);
-            card.setPadding(dp(5), dp(6), dp(5), dp(6));
+            card.setPadding(dp(4), dp(4), dp(4), dp(4));
             LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1f);
             if (i > 0) cp.leftMargin = dp(6);
             row.addView(card, cp);
 
-            TextView label = text(labels[i], 10, 0xDCEAF3FC, true);
+            TextView label = text(labels[i], 9, 0xDCEAF3FC, true);
             label.setGravity(Gravity.CENTER);
             card.addView(label, new LinearLayout.LayoutParams(-1, -2));
-            values[i] = text("--:--", 16, Color.WHITE, true);
+            values[i] = text("--:--", 14, Color.WHITE, true);
             values[i].setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams vp = wrap();
-            vp.topMargin = dp(3);
+            vp.topMargin = dp(2);
             card.addView(values[i], vp);
             cards[i] = card;
         }
 
-        status = text("Memuat jadwal…", 8, 0xAFCBD9E7, false);
+        status = text("Memuat jadwal…", 7, 0xAFCBD9E7, false);
         LinearLayout.LayoutParams sp = wrap();
-        sp.topMargin = dp(6);
+        sp.topMargin = dp(4);
         panel.addView(status, sp);
 
         panel.setFocusable(false);

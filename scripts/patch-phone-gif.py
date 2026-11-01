@@ -72,3 +72,15 @@ replace(
     }'''
 )
 
+
+replace(
+    "feature/launcher/src/test/kotlin/tv/cleanyour/feature/launcher/OwnPhotoTest.kt",
+    '''    @Test fun aNoisyPhotoFitsTheBudget() {''',
+    '''    @Test fun gifSignatureIsRecognisedWithoutReencoding() {
+        val gif = byteArrayOf('G'.code.toByte(), 'I'.code.toByte(), 'F'.code.toByte(), '8'.code.toByte(), '9'.code.toByte(), 'a'.code.toByte(), 1, 2)
+        assertTrue(OwnPhoto.isGif(gif))
+        assertTrue(!OwnPhoto.isGif(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0)))
+    }
+
+    @Test fun aNoisyPhotoFitsTheBudget() {'''
+)

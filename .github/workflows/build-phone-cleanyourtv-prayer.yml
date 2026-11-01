@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"
+      - "scripts/patch-phone-gif.py"
   pull_request:
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
@@ -41,6 +42,9 @@ jobs:
         run: |
           git clone --recurse-submodules --branch v0.4.7 https://github.com/udhaykumarbala/cleanyourtv-app.git phone
           echo "LAUNCHER_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Preserve selected GIF files in the phone app
+        run: python3 scripts/patch-phone-gif.py
 
       - name: Build modified CleanYourTV launcher
         working-directory: launcher

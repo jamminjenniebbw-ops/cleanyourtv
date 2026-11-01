@@ -12,6 +12,7 @@ on:
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"
+      - "scripts/patch-phone-gif.py"
 
 permissions:
   contents: read

@@ -135,7 +135,6 @@ jobs:
           test -n "$APK"
           mkdir -p "$GITHUB_WORKSPACE/out"
           cp "$APK" "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Edition.apk"
-          cp android/platform/src/main/assets/bundled/cleanyourtv-launcher.apk "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Launcher.apk"
           apksigner verify --verbose "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Bandung.apk"
           sha256sum "$GITHUB_WORKSPACE/out/"*.apk
 

@@ -95,6 +95,7 @@ final class PrayerTimesPanel {
             vp.topMargin = dp(3);
             card.addView(values[i], vp);
             row.addView(card, wrap());
+            cards[i] = card;
         }
         status = text("Mengambil jadwal daring…", 10, 0xB3FFFFFF, false);
         LinearLayout.LayoutParams sp = wrap(); sp.topMargin = dp(6);
@@ -157,7 +158,7 @@ final class PrayerTimesPanel {
                     todayTimes.add(t); values[p].setText(t);
                 }
                 loadedDate = date;
-                status.setText("Jadwal Kemenag RI • " + date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", new Locale("id","ID"))));
+                status.setText("Jadwal salat • " + date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", new Locale("id","ID"))));
                 updateNext();
                 return;
             }
@@ -200,11 +201,11 @@ final class PrayerTimesPanel {
 
         for (int i = 0; i < cards.length; i++) {
             boolean highlighted = i == nextIndex;
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(10));
-            bg.setColor(highlighted ? 0xCC287A58 : 0x14FFFFFF);
-            if (highlighted) bg.setStroke(dp(1), 0xCC78E0B0);
-            cards[i].setBackground(bg);
+            GradientDrawable cardBg = new GradientDrawable();
+            cardBg.setCornerRadius(dp(10));
+            cardBg.setColor(highlighted ? 0xCC287A58 : 0x14FFFFFF);
+            if (highlighted) cardBg.setStroke(dp(1), 0xCC78E0B0);
+            cards[i].setBackground(cardBg);
         }
 
         if (nextAt == null) {

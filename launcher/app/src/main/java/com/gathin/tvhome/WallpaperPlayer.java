@@ -296,7 +296,17 @@ final class WallpaperPlayer {
     }
 
     private static boolean isGif(File file) {
-        return file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".gif");
+        // The phone's existing theme transport names its single custom picture wallpaper.jpg.
+        // Detect the actual bytes so an original GIF can pass through that backwards-compatible path.
+        try (java.io.InputStream input = new java.io.BufferedInputStream(new java.io.FileInputStream(file))) {
+            byte[] header = new byte[6];
+            int read = input.read(header);
+            return read == 6
+                    && header[0] == 'G' && header[1] == 'I' && header[2] == 'F'
+                    && header[3] == '8' && (header[4] == '7' || header[4] == '9') && header[5] == 'a';
+        } catch (Exception ignored) {
+            return file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".gif");
+        }
     }
 
     private AnimatedImageDrawable decodeGif(File file) {

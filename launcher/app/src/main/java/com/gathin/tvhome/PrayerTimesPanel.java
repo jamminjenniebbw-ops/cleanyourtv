@@ -65,7 +65,11 @@ final class PrayerTimesPanel {
     }
 
     void onGridScrolled(int verticalOffsetPx) {
+        // Visibility follows the actual Home scroll position, not the remote key event.
+        // At the top (dock/first shelf) the panel is visible; once the app grid moves down,
+        // hide it so it cannot cover the header or the rows below. Returning to offset 0 restores it.
         if (verticalOffsetPx > 0) hideForNavigation();
+        else showAtHomeTop();
     }
 
     private PrayerTimesPanel(Activity a) {

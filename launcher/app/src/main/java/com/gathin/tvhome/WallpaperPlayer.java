@@ -5,6 +5,10 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.ImageDecoder;
+import android.graphics.drawable.AnimatedImageDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ColorDrawable;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -48,6 +52,7 @@ final class WallpaperPlayer {
     private final int dimColor;
     /** The picture on screen, released once the next one has been drawn. */
     private Bitmap current;
+    private AnimatedImageDrawable currentAnimation;
     private boolean active;
     private boolean closed;
     private boolean loading;
@@ -130,16 +135,20 @@ final class WallpaperPlayer {
 
     void start() {
         active = true;
+        if (currentAnimation != null) currentAnimation.start();
         update();
     }
 
     void stop() {
         active = false;
+        if (currentAnimation != null) currentAnimation.stop();
     }
 
     /** Drops the wallpaper texture when Home is hidden and Android asks the process to free memory. */
     void releaseForMemoryPressure() {
-        if (current == null) return;
+        if (current == null && currentAnimation == null) return;
+        if (currentAnimation != null) currentAnimation.stop();
+        currentAnimation = null;
         image.setImageDrawable(null);
         // The renderer may still have a queued frame that references this hardware bitmap. Drop our references and
         // let Android reclaim its native buffer after rendering releases it instead of recycling it mid-frame.
@@ -162,6 +171,8 @@ final class WallpaperPlayer {
     void close() {
         active = false;
         closed = true;
+        if (currentAnimation != null) currentAnimation.stop();
+        currentAnimation = null;
         decoder.shutdownNow();
     }
 
@@ -179,20 +190,22 @@ final class WallpaperPlayer {
         File next = selected;
         loading = true;
         decoder.execute(() -> {
-            Bitmap bitmap = decode(next);
+            Bitmap bitmap = isGif(next) ? null : decode(next);
+            AnimatedImageDrawable gif = isGif(next) ? decodeGif(next) : null;
             root.post(() -> {
                 loading = false;
                 if (closed || !active) {
                     if (bitmap != null) bitmap.recycle();
+                    if (gif != null) gif.stop();
                     return;
                 }
-                if (bitmap == null) {
+                if (bitmap == null && gif == null) {
                     files.remove(next);
                     Log.w("TvHome.Wallpaper", "Skipping unreadable image: " + next.getName());
                     update();
                     return;
                 }
-                show(bitmap);
+                if (gif != null) show(gif); else show(bitmap);
                 displayed = next.getName();
                 showCaption(true);
                 if (!displayed.equals(previous) || changed == 0) {
@@ -259,14 +272,55 @@ final class WallpaperPlayer {
         return key.toString();
     }
 
+    private static boolean isGif(File file) {
+        return file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".gif");
+    }
+
+    private AnimatedImageDrawable decodeGif(File file) {
+        if (android.os.Build.VERSION.SDK_INT < 28) return null;
+        try {
+            ImageDecoder.Source source = ImageDecoder.createSource(file);
+            Drawable drawable = ImageDecoder.decodeDrawable(source, (decoder, info, src) -> {
+                int w = info.getSize().getWidth(), h = info.getSize().getHeight();
+                if (w <= 0 || h <= 0 || !WallpaperSize.accepted(w, h)) {
+                    throw new IllegalArgumentException("Unsupported GIF dimensions");
+                }
+                float scale = Math.max((float) width / w, (float) height / h);
+                decoder.setTargetSize(Math.max(1, Math.round(w * scale)), Math.max(1, Math.round(h * scale)));
+            });
+            if (!(drawable instanceof AnimatedImageDrawable)) return null;
+            AnimatedImageDrawable gif = (AnimatedImageDrawable) drawable;
+            gif.setRepeatCount(AnimatedImageDrawable.REPEAT_INFINITE);
+            return gif;
+        } catch (Exception | OutOfMemoryError failure) {
+            Log.w("TvHome.Wallpaper", "Could not decode GIF: " + file.getName(), failure);
+            return null;
+        }
+    }
+
     /** Puts a picture on screen and releases the previous one after a frame has drawn the new one. */
     private void show(Bitmap bitmap) {
+        AnimatedImageDrawable oldAnimation = currentAnimation;
+        currentAnimation = null;
+        if (oldAnimation != null) oldAnimation.stop();
         Bitmap old = current;
         current = bitmap;
-        // The wallpaper covers the whole root; avoid drawing the fallback colour under it.
         root.setBackground(null);
+        image.setForeground(dimColor == 0 ? null : new ColorDrawable(dimColor));
         image.setImageBitmap(bitmap);
         if (old != null && old != bitmap) image.postDelayed(old::recycle, 500);
+    }
+
+    private void show(AnimatedImageDrawable gif) {
+        Bitmap old = current;
+        current = null;
+        if (old != null) image.postDelayed(old::recycle, 500);
+        if (currentAnimation != null) currentAnimation.stop();
+        currentAnimation = gif;
+        root.setBackground(null);
+        image.setForeground(dimColor == 0 ? null : new ColorDrawable(dimColor));
+        image.setImageDrawable(gif);
+        if (active) gif.start();
     }
 
     private Bitmap decode(File file) {

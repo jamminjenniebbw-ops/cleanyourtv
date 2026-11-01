@@ -45,7 +45,7 @@ final class PrayerTimesPanel {
                 Gravity.TOP | Gravity.END);
         lp.topMargin = (int)(142*d);
         // Align the panel's right edge with the header controls and dock's visual edge.
-        lp.rightMargin = (int)(68*d);
+        lp.rightMargin = (int)(56*d);
         root.addView(p.panel, lp);
         p.load();
         p.handler.postDelayed(p.tick, 1_000L);

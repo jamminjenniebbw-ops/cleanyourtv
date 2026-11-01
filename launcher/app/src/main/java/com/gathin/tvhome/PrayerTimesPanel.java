@@ -36,8 +36,8 @@ final class PrayerTimesPanel {
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
      */
-    static PrayerTimesPanel attach(Activity a, FrameLayout root) {
-        PrayerTimesPanel p = new PrayerTimesPanel(a);
+    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand) {
+        PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand);
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
         int panelWidth = Math.min((int)(650*d), (int)(screenWidth * .54f));
@@ -76,16 +76,27 @@ final class PrayerTimesPanel {
         else showAtHomeTop();
     }
 
-    private PrayerTimesPanel(Activity a) {
+    private PrayerTimesPanel(Activity a, boolean dockGlass, int dockOpacity, boolean dockBand) {
         activity = a;
         panel = new LinearLayout(a);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(12), dp(8), dp(12), dp(8));
-        GradientDrawable bg = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x992A4055, 0x991B2B3E});
+        // Match the dock band's appearance from the launcher's live theme/settings.
+        GradientDrawable bg;
+        if (!dockBand) {
+            bg = new GradientDrawable();
+            bg.setColor(Color.TRANSPARENT);
+        } else if (dockGlass) {
+            bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{0x24FFFFFF, 0x0DFFFFFF});
+        } else {
+            int alpha = Math.max(30, Math.min(100, dockOpacity));
+            int color = (Math.round(alpha * 2.55f) << 24) | 0x00141416;
+            bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{color, color});
+        }
         bg.setCornerRadius(dp(18));
-        bg.setStroke(dp(1), 0x557FA9C8);
+        bg.setStroke(dp(1), dockBand ? (dockGlass ? 0x38FFFFFF : 0x26FFFFFF) : Color.TRANSPARENT);
         panel.setBackground(bg);
         panel.setElevation(dp(5));
 

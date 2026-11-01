@@ -108,7 +108,7 @@ jobs:
           patch("PinnedCurtain", "SHA256", '"' + ch + '"')
           pins_path.write_text(pins)
           print(f"Launcher: package={launcher_package}, version={launcher_version_name} ({launcher_version_code}), size={ls}, sha256={lh}, signer={signer}, commit={launcher_commit}")
-          print(f"Curtain: package={curtain_package}, version={curtain_version_name} ({curtain_version_code}), size={cs}, sha256={ch}, signer={curtain_signer}")
+          print(f"Curtain: package={curtain_package}, version={curtain_version_name}, size={cs}, sha256={ch}, signer={curtain_signer}")
           PY
 
       - name: Keep the modified phone app separate from the original install
@@ -135,7 +135,7 @@ jobs:
           test -n "$APK"
           mkdir -p "$GITHUB_WORKSPACE/out"
           cp "$APK" "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Edition.apk"
-          apksigner verify --verbose "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Bandung.apk"
+          apksigner verify --verbose "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Edition.apk"
           sha256sum "$GITHUB_WORKSPACE/out/"*.apk
 
       - name: Upload APKs

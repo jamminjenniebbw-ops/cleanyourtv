@@ -1271,11 +1271,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             }
         }
-        if (event.getAction() == KeyEvent.ACTION_DOWN
-                && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
-                && prayerTimesPanel != null) {
-            prayerTimesPanel.hideForNavigation();
-        }
         if (!reordering) return super.dispatchKeyEvent(event);
         if (dockEditing) return dispatchDockEdit(event);
         boolean down = event.getAction() == KeyEvent.ACTION_DOWN;

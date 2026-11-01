@@ -28,20 +28,35 @@ final class PrayerTimesPanel {
     private final LinearLayout panel;
     private final TextView status, next;
     private final TextView[] values = new TextView[5];
+    private final View[] cards = new View[5];
+    private int baseTopMarginPx;
     private final String[] names = {"Subuh", "Zuhur", "Asar", "Magrib", "Isya"};
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
     private LocalDate loadedDate;
 
-    static void attach(Activity a, FrameLayout root) {
+    static PrayerTimesPanel attach(Activity a, FrameLayout root) {
         PrayerTimesPanel p = new PrayerTimesPanel(a);
         float d = a.getResources().getDisplayMetrics().density;
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        lp.topMargin = (int)(142*d);
+        p.baseTopMarginPx = (int)(142*d);
+        lp.topMargin = p.baseTopMarginPx;
         lp.setMarginEnd((int)(48*d));
         root.addView(p.panel, lp);
         p.load();
-        p.handler.postDelayed(p.tick, 60_000L);
+        p.handler.postDelayed(p.tick, 1_000L);
+        return p;
+    }
+
+    /** Move with the scrolling app grid instead of behaving like a floating overlay. */
+    void onGridScrolled(int verticalOffsetPx) {
+        panel.setTranslationY(-Math.max(0, verticalOffsetPx));
+        int height = panel.getHeight();
+        if (height > 0 && baseTopMarginPx - verticalOffsetPx + height <= 0) {
+            panel.setVisibility(View.GONE);
+        } else {
+            panel.setVisibility(View.VISIBLE);
+        }
     }
 
     private PrayerTimesPanel(Activity a) {
@@ -97,7 +112,7 @@ final class PrayerTimesPanel {
             LocalDate d = LocalDate.now(ZONE);
             if (loadedDate == null || !d.equals(loadedDate)) load();
             else updateNext();
-            handler.postDelayed(this, 60_000L);
+            handler.postDelayed(this, 1_000L);
         }
     };
 
@@ -158,16 +173,50 @@ final class PrayerTimesPanel {
     private void updateNext() {
         if (todayTimes.isEmpty()) return;
         ZonedDateTime now = ZonedDateTime.now(ZONE);
-        for (int i=0;i<todayTimes.size();i++) try {
-            String[] hm = todayTimes.get(i).split(":");
-            ZonedDateTime t = now.toLocalDate().atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1])).atZone(ZONE);
-            if (t.isAfter(now)) {
-                long m = Duration.between(now,t).toMinutes();
-                next.setText("Berikutnya: " + names[i] + " • " + (m/60) + " jam " + (m%60) + " menit");
-                return;
-            }
-        } catch (Exception ignored) {}
-        next.setText("Berikutnya: Subuh besok");
+        int nextIndex = -1;
+        ZonedDateTime nextAt = null;
+        for (int i = 0; i < todayTimes.size(); i++) {
+            try {
+                String[] hm = todayTimes.get(i).split(":");
+                ZonedDateTime candidate = now.toLocalDate()
+                        .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1]))
+                        .atZone(ZONE);
+                if (candidate.isAfter(now)) {
+                    nextIndex = i;
+                    nextAt = candidate;
+                    break;
+                }
+            } catch (Exception ignored) { }
+        }
+        if (nextAt == null) {
+            try {
+                String[] hm = todayTimes.get(0).split(":");
+                nextIndex = 0;
+                nextAt = now.toLocalDate().plusDays(1)
+                        .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1]))
+                        .atZone(ZONE);
+            } catch (Exception ignored) { }
+        }
+
+        for (int i = 0; i < cards.length; i++) {
+            boolean highlighted = i == nextIndex;
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(10));
+            bg.setColor(highlighted ? 0xCC287A58 : 0x14FFFFFF);
+            if (highlighted) bg.setStroke(dp(1), 0xCC78E0B0);
+            cards[i].setBackground(bg);
+        }
+
+        if (nextAt == null) {
+            next.setText("Salat berikutnya: --");
+            return;
+        }
+        long seconds = Math.max(0, Duration.between(now, nextAt).getSeconds());
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long remainingSeconds = seconds % 60;
+        String countdown = String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds);
+        next.setText("Berikutnya: " + names[nextIndex] + " • " + countdown);
     }
 
     private TextView text(String s, int size, int color, boolean medium) {

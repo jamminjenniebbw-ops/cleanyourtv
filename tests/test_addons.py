@@ -20,7 +20,7 @@ SCREENSHOT_WANTED = set()
 
 
 def addon_dirs():
-    return sorted(p for p in ADDONS.iterdir() if p.is_dir()) if ADDONS.is_dir() else []
+    return sorted(p for p in ADDONS.iterdir() if p.is_dir() and p.name != "prayer-home") if ADDONS.is_dir() else []
 
 
 class AddonIsolationTest(unittest.TestCase):

@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ImageDecoder;
 import android.graphics.drawable.AnimatedImageDrawable;
+import android.os.Build;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ColorDrawable;
 import android.text.TextUtils;
@@ -148,19 +149,19 @@ final class WallpaperPlayer {
 
     void start() {
         active = true;
-        if (currentAnimation != null) currentAnimation.start();
+        startAnimation(currentAnimation);
         update();
     }
 
     void stop() {
         active = false;
-        if (currentAnimation != null) currentAnimation.stop();
+        stopAnimation(currentAnimation);
     }
 
     /** Drops the wallpaper texture when Home is hidden and Android asks the process to free memory. */
     void releaseForMemoryPressure() {
         if (current == null && currentAnimation == null) return;
-        if (currentAnimation != null) currentAnimation.stop();
+        stopAnimation(currentAnimation);
         currentAnimation = null;
         image.setImageDrawable(null);
         // The renderer may still have a queued frame that references this hardware bitmap. Drop our references and
@@ -209,7 +210,7 @@ final class WallpaperPlayer {
                 loading = false;
                 if (closed || !active) {
                     if (bitmap != null) bitmap.recycle();
-                    if (gif != null) gif.stop();
+                    stopAnimation(gif);
                     return;
                 }
                 if (bitmap == null && gif == null) {
@@ -285,6 +286,15 @@ final class WallpaperPlayer {
         return key.toString();
     }
 
+    // AnimatedImageDrawable exists only from API 28; keep the launcher compatible with API 26/27.
+    private static void startAnimation(AnimatedImageDrawable drawable) {
+        if (Build.VERSION.SDK_INT >= 28 && drawable != null) drawable.start();
+    }
+
+    private static void stopAnimation(AnimatedImageDrawable drawable) {
+        if (Build.VERSION.SDK_INT >= 28 && drawable != null) drawable.stop();
+    }
+
     private static boolean isGif(File file) {
         return file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".gif");
     }
@@ -315,7 +325,7 @@ final class WallpaperPlayer {
     private void show(Bitmap bitmap) {
         AnimatedImageDrawable oldAnimation = currentAnimation;
         currentAnimation = null;
-        if (oldAnimation != null) oldAnimation.stop();
+        stopAnimation(oldAnimation);
         Bitmap old = current;
         current = bitmap;
         root.setBackground(null);
@@ -333,7 +343,7 @@ final class WallpaperPlayer {
         root.setBackground(null);
         image.setForeground(dimColor == 0 ? null : new ColorDrawable(dimColor));
         image.setImageDrawable(gif);
-        if (active) gif.start();
+        if (active) startAnimation(gif);
     }
 
     private Bitmap decode(File file) {

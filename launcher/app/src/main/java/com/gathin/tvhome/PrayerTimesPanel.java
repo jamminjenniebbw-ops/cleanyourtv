@@ -48,6 +48,12 @@ final class PrayerTimesPanel {
         return p;
     }
 
+    /** Keep this panel above the wallpaper and other root-level launcher layers. */
+    void bringToFront() {
+        panel.bringToFront();
+        panel.invalidate();
+    }
+
     /** Move with the scrolling app grid instead of behaving like a floating overlay. */
     void onGridScrolled(int verticalOffsetPx) {
         panel.setTranslationY(-Math.max(0, verticalOffsetPx));

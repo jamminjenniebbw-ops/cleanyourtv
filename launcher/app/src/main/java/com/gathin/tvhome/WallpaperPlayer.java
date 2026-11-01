@@ -185,7 +185,7 @@ final class WallpaperPlayer {
     void close() {
         active = false;
         closed = true;
-        if (currentAnimation != null) currentAnimation.stop();
+        stopAnimation(currentAnimation);
         currentAnimation = null;
         decoder.shutdownNow();
     }

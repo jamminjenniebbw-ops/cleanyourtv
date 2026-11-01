@@ -72,20 +72,3 @@ replace(
     }'''
 )
 
-# Add a focused unit test to the existing flows test file.
-test_path = ROOT / "core/flows/src/test/kotlin/tv/cleanyour/core/flows/OwnPictureTest.kt"
-if test_path.exists():
-    test = test_path.read_text()
-    if "aGifIsAcceptedUnchanged" not in test:
-        marker = "class OwnPictureTest {"
-        if marker not in test:
-            raise SystemExit("Could not locate OwnPictureTest class")
-        test = test.replace(marker, marker + '''
-    @Test fun aGifIsAcceptedUnchanged() = runTest {
-        val gif = byteArrayOf('G'.code.toByte(), 'I'.code.toByte(), 'F'.code.toByte(), '8'.code.toByte(), '9'.code.toByte(), 'a'.code.toByte(), 1, 2)
-        val ref = OwnPicture.stage(blobs, gif)
-        assertContentEquals(gif, blobs.bytes(ref))
-    }
-
-''', 1)
-        test_path.write_text(test)

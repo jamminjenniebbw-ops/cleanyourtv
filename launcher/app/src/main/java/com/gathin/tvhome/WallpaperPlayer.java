@@ -338,7 +338,7 @@ final class WallpaperPlayer {
         Bitmap old = current;
         current = null;
         if (old != null) image.postDelayed(old::recycle, 500);
-        if (currentAnimation != null) currentAnimation.stop();
+        stopAnimation(currentAnimation);
         currentAnimation = gif;
         root.setBackground(null);
         image.setForeground(dimColor == 0 ? null : new ColorDrawable(dimColor));

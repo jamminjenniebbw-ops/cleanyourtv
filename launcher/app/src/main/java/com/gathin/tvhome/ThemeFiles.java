@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 final class ThemeFiles {
     static final String WALLPAPERS = "wallpapers";
     /** The names tools/theme.sh accepts for a collection image, and the types WallpaperRotation reads. */
-    private static final Pattern IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\.(jpg|jpeg|png|webp)",
+    private static final Pattern IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\.(jpg|jpeg|png|webp|gif)",
             Pattern.CASE_INSENSITIVE);
 
     private ThemeFiles() {}

@@ -10,6 +10,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -29,40 +30,43 @@ final class PrayerTimesPanel {
     private final TextView status, next, nextName;
     private final TextView[] values = new TextView[5];
     private final View[] cards = new View[5];
-    private int baseTopMarginPx;
     private final String[] names = {"Subuh", "Zuhur", "Asar", "Magrib", "Isya"};
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
-    private LocalDate loadedDate;
-
-    static PrayerTimesPanel attach(Activity a, FrameLayout root) {
+    private LocalDate loadedDate;    /**
+     * Insert the panel into the Home column immediately above the app grid. This reserves real layout
+     * space: it cannot cover app labels and it never moves when RecyclerView scrolls.
+     */
+    static PrayerTimesPanel attach(Activity a, LinearLayout homeColumn, View gridFrame) {
         PrayerTimesPanel p = new PrayerTimesPanel(a);
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
-        int panelWidth = Math.min((int)(760*d), (int)(screenWidth * .56f));
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, -2, Gravity.TOP | Gravity.END);
-        p.baseTopMarginPx = (int)(150*d);
-        lp.topMargin = p.baseTopMarginPx;
-        lp.setMarginEnd((int)(48*d));
-        root.addView(p.panel, lp);
+        int panelWidth = Math.min((int)(760*d), (int)(screenWidth * .70f));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(panelWidth, -2);
+        lp.gravity = Gravity.END;
+        lp.rightMargin = (int)(8*d);
+        lp.bottomMargin = (int)(8*d);
+        int gridIndex = homeColumn.indexOfChild(gridFrame);
+        if (gridIndex < 0) gridIndex = homeColumn.getChildCount();
+        homeColumn.addView(p.panel, gridIndex, lp);
         p.load();
         p.handler.postDelayed(p.tick, 1_000L);
         return p;
     }
 
-    /** Keep this panel above the wallpaper and other root-level launcher layers. */
+    /** Kept for compatibility with callers; the panel is now part of the vertical layout, not an overlay. */
     void bringToFront() {
         panel.bringToFront();
         panel.invalidate();
     }
 
-    /** Move with the scrolling app grid instead of behaving like a floating overlay. */
+    /** The panel is outside RecyclerView, so scrolling the app grid must never move it. */
     void onGridScrolled(int verticalOffsetPx) {
-        // Keep the prayer panel anchored beneath the top action pills. RecyclerView scroll
-        // must not pull it over the Inputs / Wi-Fi / Settings row or app labels.
         panel.setTranslationY(0f);
         panel.setVisibility(View.VISIBLE);
     }
+
+
 
     private PrayerTimesPanel(Activity a) {
         activity = a;

@@ -26,7 +26,7 @@ final class PrayerTimesPanel {
     private static final ZoneId ZONE = ZoneId.of("Asia/Jakarta");
     private final Activity activity;
     private final LinearLayout panel;
-    private final TextView status, next;
+    private final TextView status, next, nextName;
     private final TextView[] values = new TextView[5];
     private final View[] cards = new View[5];
     private int baseTopMarginPx;
@@ -38,7 +38,9 @@ final class PrayerTimesPanel {
     static PrayerTimesPanel attach(Activity a, FrameLayout root) {
         PrayerTimesPanel p = new PrayerTimesPanel(a);
         float d = a.getResources().getDisplayMetrics().density;
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+        int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
+        int panelWidth = Math.min((int)(900*d), (int)(screenWidth * .68f));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, -2, Gravity.TOP | Gravity.END);
         p.baseTopMarginPx = (int)(142*d);
         lp.topMargin = p.baseTopMarginPx;
         lp.setMarginEnd((int)(48*d));
@@ -69,49 +71,89 @@ final class PrayerTimesPanel {
         activity = a;
         panel = new LinearLayout(a);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(14), dp(10), dp(14), dp(10));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xB8202020);
-        bg.setCornerRadius(dp(14));
-        bg.setStroke(dp(1), 0x24FFFFFF);
+        panel.setPadding(dp(22), dp(17), dp(22), dp(17));
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xD92A4055, 0xD91B2B3E});
+        bg.setCornerRadius(dp(22));
+        bg.setStroke(dp(1), 0x557FA9C8);
         panel.setBackground(bg);
+        panel.setElevation(dp(8));
 
-        TextView title = text("JADWAL SALAT  •  BANDUNG", 11, 0xB3FFFFFF, true);
-        title.setLetterSpacing(.12f);
-        panel.addView(title, wrap());
+        LinearLayout header = new LinearLayout(a);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        panel.addView(header, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout identity = new LinearLayout(a);
+        identity.setOrientation(LinearLayout.VERTICAL);
+        identity.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(identity, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView title = text("Jadwal Sholat", 19, Color.WHITE, true);
+        identity.addView(title, wrap());
+        TextView location = text("Bandung, Jawa Barat", 12, 0xD6E4EDF5, false);
+        LinearLayout.LayoutParams locp = wrap();
+        locp.topMargin = dp(5);
+        identity.addView(location, locp);
+
+        LinearLayout upcoming = new LinearLayout(a);
+        upcoming.setOrientation(LinearLayout.VERTICAL);
+        upcoming.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        upcoming.setPadding(dp(18), 0, 0, 0);
+        header.addView(upcoming, wrap());
+
+        nextName = text("Sholat Berikutnya", 12, 0xFFFFD98A, true);
+        nextName.setGravity(Gravity.END);
+        upcoming.addView(nextName, wrap());
+        next = text("--:--:--", 22, 0xFFFFE3A6, true);
+        next.setGravity(Gravity.END);
+        LinearLayout.LayoutParams np = wrap();
+        np.topMargin = dp(4);
+        upcoming.addView(next, np);
+
+        View divider = new View(a);
+        divider.setBackgroundColor(0x557FA9C8);
+        LinearLayout.LayoutParams dpv = new LinearLayout.LayoutParams(-1, dp(1));
+        dpv.topMargin = dp(14);
+        dpv.bottomMargin = dp(13);
+        panel.addView(divider, dpv);
 
         LinearLayout row = new LinearLayout(a);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams rp = wrap();
-        rp.topMargin = dp(8);
-        panel.addView(row, rp);
-        String[] labels = {"SUBUH", "ZUHUR", "ASAR", "MAGRIB", "ISYA"};
-        for (int i=0;i<5;i++) {
+        panel.addView(row, new LinearLayout.LayoutParams(-1, -2));
+
+        String[] labels = {"Subuh", "Zuhur", "Asar", "Magrib", "Isya"};
+        for (int i = 0; i < 5; i++) {
             LinearLayout card = new LinearLayout(a);
             card.setOrientation(LinearLayout.VERTICAL);
             card.setGravity(Gravity.CENTER);
-            card.setPadding(dp(8), dp(4), dp(8), dp(4));
-            TextView label = text(labels[i], 10, 0xB3FFFFFF, true);
+            card.setPadding(dp(7), dp(11), dp(7), dp(11));
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1f);
+            if (i > 0) cp.leftMargin = dp(6);
+            row.addView(card, cp);
+
+            TextView label = text(labels[i], 12, 0xDCEAF3FC, true);
             label.setGravity(Gravity.CENTER);
-            values[i] = text("--:--", 17, Color.WHITE, false);
+            card.addView(label, new LinearLayout.LayoutParams(-1, -2));
+            values[i] = text("--:--", 20, Color.WHITE, true);
             values[i].setGravity(Gravity.CENTER);
-            card.addView(label, wrap());
             LinearLayout.LayoutParams vp = wrap();
-            vp.topMargin = dp(3);
+            vp.topMargin = dp(6);
             card.addView(values[i], vp);
-            row.addView(card, wrap());
             cards[i] = card;
         }
-        status = text("Mengambil jadwal daring…", 10, 0xB3FFFFFF, false);
-        LinearLayout.LayoutParams sp = wrap(); sp.topMargin = dp(6);
+
+        status = text("Memuat jadwal…", 10, 0xAFCBD9E7, false);
+        LinearLayout.LayoutParams sp = wrap();
+        sp.topMargin = dp(10);
         panel.addView(status, sp);
-        next = text("Salat berikutnya: --", 12, Color.WHITE, true);
-        LinearLayout.LayoutParams np = wrap(); np.topMargin = dp(4);
-        panel.addView(next, np);
+
         panel.setFocusable(false);
         panel.setClickable(false);
         panel.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        updateCardStyles(-1);
     }
 
     private final Runnable tick = new Runnable() {
@@ -164,7 +206,7 @@ final class PrayerTimesPanel {
                     todayTimes.add(t); values[p].setText(t);
                 }
                 loadedDate = date;
-                status.setText("Jadwal salat • " + date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", new Locale("id","ID"))));
+                status.setText("Jadwal diperbarui • " + date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", new Locale("id","ID"))));
                 updateNext();
                 return;
             }
@@ -175,6 +217,17 @@ final class PrayerTimesPanel {
     private int field(JSONArray a, String key) {
         for (int i=0;i<a.length();i++) if (key.equalsIgnoreCase(a.optString(i))) return i;
         return -1;
+    }
+
+    private void updateCardStyles(int nextIndex) {
+        for (int i = 0; i < cards.length; i++) {
+            boolean highlighted = i == nextIndex;
+            GradientDrawable cardBg = new GradientDrawable();
+            cardBg.setCornerRadius(dp(13));
+            cardBg.setColor(highlighted ? 0xDD1677D2 : 0x263E5D78);
+            cardBg.setStroke(dp(1), highlighted ? 0xFF75C5FF : 0x557FA9C8);
+            cards[i].setBackground(cardBg);
+        }
     }
 
     private void updateNext() {
@@ -204,31 +257,27 @@ final class PrayerTimesPanel {
                         .atZone(ZONE);
             } catch (Exception ignored) { }
         }
-
-        for (int i = 0; i < cards.length; i++) {
-            boolean highlighted = i == nextIndex;
-            GradientDrawable cardBg = new GradientDrawable();
-            cardBg.setCornerRadius(dp(10));
-            cardBg.setColor(highlighted ? 0xCC287A58 : 0x14FFFFFF);
-            if (highlighted) cardBg.setStroke(dp(1), 0xCC78E0B0);
-            cards[i].setBackground(cardBg);
-        }
-
+        updateCardStyles(nextIndex);
         if (nextAt == null) {
-            next.setText("Salat berikutnya: --");
+            nextName.setText("Sholat Berikutnya");
+            next.setText("--:--:--");
             return;
         }
         long seconds = Math.max(0, Duration.between(now, nextAt).getSeconds());
         long hours = seconds / 3600;
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;
-        String countdown = String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds);
-        next.setText("Berikutnya: " + names[nextIndex] + " • " + countdown);
+        nextName.setText("Sholat Berikutnya • " + names[nextIndex]);
+        next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));
     }
 
     private TextView text(String s, int size, int color, boolean medium) {
-        TextView t = new TextView(activity); t.setText(s); t.setTextSize(size); t.setTextColor(color);
-        t.setIncludeFontPadding(false); t.setTypeface(Typeface.create(medium ? "sans-serif-medium" : "sans-serif-light", Typeface.NORMAL));
+        TextView t = new TextView(activity);
+        t.setText(s);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        t.setIncludeFontPadding(false);
+        t.setTypeface(Typeface.create(medium ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
         return t;
     }
     private LinearLayout.LayoutParams wrap() { return new LinearLayout.LayoutParams(-2,-2); }

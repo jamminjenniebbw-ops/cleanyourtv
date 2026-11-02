@@ -5,7 +5,7 @@ name: Build CleanYourTV phone app with Prayer Edition
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, "prayer-edition/**" ]
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"

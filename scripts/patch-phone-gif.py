@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply byte-preserving GIF wallpaper support (GIF <= 1,000,000 bytes; JPEG limit unchanged) to pinned v0.4.7."""
+"""Apply byte-preserving GIF wallpaper support (GIF <= 1,048,576 bytes; JPEG limit unchanged) to pinned v0.4.7."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "phone"
@@ -18,14 +18,14 @@ replace(
     "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/OwnPhoto.kt",
     '''    const val MAX_BYTES = 280_000''',
     '''    const val MAX_BYTES = 280_000
-    const val GIF_MAX_BYTES = 1_000_000'''
+    const val GIF_MAX_BYTES = 1_048_576'''
 )
 
 replace(
     "core/flows/src/main/kotlin/tv/cleanyour/core/flows/OwnPicture.kt",
     '''    const val MAX_BYTES = 280_000''',
     '''    const val MAX_BYTES = 280_000
-    const val GIF_MAX_BYTES = 1_000_000'''
+    const val GIF_MAX_BYTES = 1_048_576'''
 )
 
 replace(
@@ -99,7 +99,7 @@ replace(
 replace(
     "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
     "const val MAX_WALLPAPER_BYTES = 300L * 1024",
-    "const val MAX_WALLPAPER_BYTES = 1_000_000L"
+    "const val MAX_WALLPAPER_BYTES = 1_048_576L"
 )
 
 # Permit the existing provider to write the same wallpaper payload under its legacy

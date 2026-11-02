@@ -614,7 +614,10 @@ final class Config {
         if (chosenRows >= 0 && chosenRows <= 3) rowsBelow = chosenRows;
         animations = choices.getBoolean("animations", animations);
         advancedEffects = choices.getBoolean("advanced_effects", advancedEffects);
-        File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
+        File wallpaper = dir != null ? new File(dir, "wallpaper.mp4") : null;
+        if (wallpaper == null || !wallpaper.isFile() || wallpaper.length() <= 0) {
+            wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
+        }
         if (wallpaper != null && !(wallpaper.isFile() && wallpaper.length() > 0)) {
             File gif = dir != null ? new File(dir, "wallpaper.gif") : null;
             wallpaper = gif != null && gif.isFile() && gif.length() > 0 ? gif : null;

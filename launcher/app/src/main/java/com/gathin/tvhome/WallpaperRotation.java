@@ -25,9 +25,11 @@ final class WallpaperRotation {
         Arrays.sort(entries, Comparator.comparing(File::getName));
         for (File entry : entries) {
             String name = entry.getName().toLowerCase(Locale.ROOT);
-            if (entry.isFile() && entry.length() > 0 && entry.length() <= 10 * 1024 * 1024
+            if (entry.isFile() && entry.length() > 0
+                    && entry.length() <= (name.endsWith(".mp4") ? 20L * 1024 * 1024 : 10L * 1024 * 1024)
                     && (name.endsWith(".jpg") || name.endsWith(".jpeg")
-                    || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".gif"))) {
+                    || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".gif")
+                    || name.endsWith(".mp4"))) {
                 result.add(entry);
                 if (result.size() == 100) break;
             }

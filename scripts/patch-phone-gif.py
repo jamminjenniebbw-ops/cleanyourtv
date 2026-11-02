@@ -175,3 +175,11 @@ replace(
     "const val MAX_WALLPAPER_BYTES = 1_048_576L",
     "const val MAX_WALLPAPER_BYTES = 20_971_520L"
 )
+
+# The system picker must expose videos as well as still images. PhotoCropDialog
+# recognises MP4 by the ISO-BMFF ftyp signature and passes its bytes unchanged.
+replace(
+    "app/src/main/kotlin/tv/cleanyour/app/AppRoot.kt",
+    "PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)",
+    "PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)"
+)

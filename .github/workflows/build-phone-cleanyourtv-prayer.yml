@@ -1,12 +1,21 @@
-name: Build CleanYourTV phone app with Bandung prayer times
+name: Build CleanYourTV phone app with Prayer Edition
+
+# GIF wallpaper pass-through is validated at a maximum of 1,000,000 bytes.
+# Keep this workflow path in push/PR filters so build verification can be retriggered.
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, "prayer-edition/**" ]
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"
+      - "scripts/patch-phone-gif.py"
+  pull_request:
+    paths:
+      - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
+      - "launcher/**"
+      - "scripts/patch-phone-gif.py"
 
 permissions:
   contents: read
@@ -33,10 +42,13 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Get CleanYourTV phone app source (v0.3.7)
+      - name: Get CleanYourTV phone app source (v0.4.7)
         run: |
-          git clone --recurse-submodules --branch v0.3.7 https://github.com/udhaykumarbala/cleanyourtv-app.git phone
+          git clone --recurse-submodules --branch v0.4.7 https://github.com/udhaykumarbala/cleanyourtv-app.git phone
           echo "LAUNCHER_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Preserve selected GIF files in the phone app
+        run: python3 scripts/patch-phone-gif.py
 
       - name: Build modified CleanYourTV launcher
         working-directory: launcher
@@ -73,9 +85,15 @@ jobs:
               match = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)", out)
               if not match:
                   raise SystemExit("Could not read APK signer digest for " + str(path) + "\n" + out)
-              return len(data), hashlib.sha256(data).hexdigest(), match.group(1).lower()
-          ls, lh, signer = metadata(launcher)
-          cs, ch, curtain_signer = metadata(curtain)
+              badging = subprocess.check_output(["aapt", "dump", "badging", str(path)], text=True)
+              package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']*)'", badging, re.M)
+              if not package:
+                  raise SystemExit("Could not read package/version metadata for " + str(path))
+              return len(data), hashlib.sha256(data).hexdigest(), match.group(1).lower(), package.group(1), package.group(2), package.group(3)
+          ls, lh, signer, launcher_package, launcher_version_code, launcher_version_name = metadata(launcher)
+          cs, ch, curtain_signer, curtain_package, curtain_version_code, curtain_version_name = metadata(curtain)
+          if launcher_package != "com.gathin.tvhome":
+              raise SystemExit("Unexpected launcher package: " + launcher_package)
           if signer != curtain_signer:
               raise SystemExit("Launcher and curtain were not signed with the same debug key")
           def patch(obj, key, value):
@@ -89,16 +107,16 @@ jobs:
                   raise SystemExit("Could not update " + obj + "." + key)
               pins = pins[:start] + block + pins[end:]
           patch("PinnedLauncher", "UPSTREAM_COMMIT", '"' + launcher_commit + '"')
-          patch("PinnedLauncher", "VERSION_CODE", "9L")
-          patch("PinnedLauncher", "VERSION_NAME", '"3.0"')
+          patch("PinnedLauncher", "VERSION_CODE", launcher_version_code + "L")
+          patch("PinnedLauncher", "VERSION_NAME", '"' + launcher_version_name + '"')
           patch("PinnedLauncher", "SIZE", str(ls) + "L")
           patch("PinnedLauncher", "SHA256", '"' + lh + '"')
           patch("PinnedLauncher", "SIGNER_SHA256", '"' + signer + '"')
           patch("PinnedCurtain", "SIZE", str(cs) + "L")
           patch("PinnedCurtain", "SHA256", '"' + ch + '"')
           pins_path.write_text(pins)
-          print(f"Launcher: size={ls}, sha256={lh}, signer={signer}, commit={launcher_commit}")
-          print(f"Curtain: size={cs}, sha256={ch}, signer={curtain_signer}")
+          print(f"Launcher: package={launcher_package}, version={launcher_version_name} ({launcher_version_code}), size={ls}, sha256={lh}, signer={signer}, commit={launcher_commit}")
+          print(f"Curtain: package={curtain_package}, version={curtain_version_name}, size={cs}, sha256={ch}, signer={curtain_signer}")
           PY
 
       - name: Keep the modified phone app separate from the original install
@@ -124,15 +142,14 @@ jobs:
           APK="$(find app/build/outputs/apk/full/debug -maxdepth 1 -name '*.apk' -print -quit)"
           test -n "$APK"
           mkdir -p "$GITHUB_WORKSPACE/out"
-          cp "$APK" "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Bandung.apk"
-          cp android/platform/src/main/assets/bundled/cleanyourtv-launcher.apk "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Launcher.apk"
-          apksigner verify --verbose "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Bandung.apk"
+          cp "$APK" "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Edition.apk"
+          apksigner verify --verbose "$GITHUB_WORKSPACE/out/CleanYourTV-Prayer-Edition.apk"
           sha256sum "$GITHUB_WORKSPACE/out/"*.apk
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: CleanYourTV-Prayer-Bandung-APKs
+          name: CleanYourTV-Prayer-Edition-APKs
           path: out/*.apk
           if-no-files-found: error
           retention-days: 14

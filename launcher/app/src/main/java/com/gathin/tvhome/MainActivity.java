@@ -139,6 +139,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private AppAdapter adapter;
     private RecyclerView grid;
     private FrameLayout root;
+    private PrayerTimesPanel prayerTimesPanel;
     private WallpaperPlayer wallpaperPlayer;
     private GlassView glass;
     private View ambient;
@@ -423,7 +424,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         coocaaSources = cfg.coocaaSources;
 
         root = findViewById(R.id.root);
-        PrayerTimesPanel.attach(this, root);
+        prayerTimesPanel = PrayerTimesPanel.attach(this, root, cfg.dockGlass, cfg.dockOpacity, cfg.dockBand);
         root.setBackgroundColor(cfg.backgroundColor);
         // root fills the window with an opaque colour (Config keeps background_color opaque), so the window's own
         // black under it is a second full-screen fill on every frame for nothing. The starting window still uses
@@ -653,6 +654,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (prayerTimesPanel != null) prayerTimesPanel.onGridScrolled(rv.computeVerticalScrollOffset());
                 if (!glassShown) return;
                 glassTargetY -= dy;
                 glassScrollShift -= dy;
@@ -839,6 +841,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent())) openInputsIfAsked(getIntent());
+        // WallpaperPlayer and the launcher's other root-level layers are created after the XML layout.
+        // Keep the prayer panel above those layers so it remains visible on Home.
+        if (prayerTimesPanel != null) prayerTimesPanel.bringToFront();
     }
 
     /**

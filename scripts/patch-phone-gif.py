@@ -58,9 +58,9 @@ replace(
                         val count = input.read(buffer, 0, minOf(buffer.size, OwnPhoto.MAX_BYTES + 1 - out.size()))
                         if (count < 0) break
                         if (count == 0) {
-                            val = input.read()
-                            if (val < 0) break
-                            out.write(val)
+                            val singleByte = input.read()
+                            if (singleByte < 0) break
+                            out.write(singleByte)
                         } else {
                             out.write(buffer, 0, count)
                         }

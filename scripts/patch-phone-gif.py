@@ -191,7 +191,8 @@ replace(
 replace(
     "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/LookEditor.kt",
     "import android.graphics.BitmapFactory",
-    """import android.graphics.BitmapFactory
+    """import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever"""
 )
 replace(

@@ -10,6 +10,8 @@ import android.graphics.drawable.AnimatedImageDrawable;
 import android.os.Build;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ColorDrawable;
+import android.media.MediaPlayer;
+import android.widget.VideoView;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -38,6 +40,8 @@ import java.util.concurrent.Executors;
 final class WallpaperPlayer {
     private final FrameLayout root;
     private final ImageView image;
+    private VideoView video;
+    private boolean videoPrepared;
     private final int backgroundColor;
     private final List<File> files;
     private final long interval;
@@ -115,6 +119,10 @@ final class WallpaperPlayer {
         File first = WallpaperRotation.find(playable, previous);
         if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
         while (first != null) {
+            if (isMp4(first)) {
+                showVideo(first);
+                return;
+            }
             if (isGif(first)) {
                 AnimatedImageDrawable gif = decodeGif(first);
                 if (gif != null) {
@@ -150,17 +158,20 @@ final class WallpaperPlayer {
     void start() {
         active = true;
         startAnimation(currentAnimation);
+        if (video != null && videoPrepared) video.start();
         update();
     }
 
     void stop() {
         active = false;
         stopAnimation(currentAnimation);
+        if (video != null && videoPrepared) video.pause();
     }
 
     /** Drops the wallpaper texture when Home is hidden and Android asks the process to free memory. */
     void releaseForMemoryPressure() {
-        if (current == null && currentAnimation == null) return;
+        if (current == null && currentAnimation == null && video == null) return;
+        if (video != null) { video.stopPlayback(); video = null; videoPrepared = false; }
         stopAnimation(currentAnimation);
         currentAnimation = null;
         image.setImageDrawable(null);
@@ -187,6 +198,7 @@ final class WallpaperPlayer {
         closed = true;
         stopAnimation(currentAnimation);
         currentAnimation = null;
+        if (video != null) { video.stopPlayback(); video = null; videoPrepared = false; }
         decoder.shutdownNow();
     }
 
@@ -204,7 +216,7 @@ final class WallpaperPlayer {
         File next = selected;
         loading = true;
         decoder.execute(() -> {
-            Bitmap bitmap = isGif(next) ? null : decode(next);
+            Bitmap bitmap = (isGif(next) || isMp4(next)) ? null : decode(next);
             AnimatedImageDrawable gif = isGif(next) ? decodeGif(next) : null;
             root.post(() -> {
                 loading = false;
@@ -213,6 +225,7 @@ final class WallpaperPlayer {
                     stopAnimation(gif);
                     return;
                 }
+                if (isMp4(next)) { showVideo(next); displayed = next.getName(); return; }
                 if (bitmap == null && gif == null) {
                     files.remove(next);
                     Log.w("TvHome.Wallpaper", "Skipping unreadable image: " + next.getName());
@@ -293,6 +306,48 @@ final class WallpaperPlayer {
 
     private static void stopAnimation(AnimatedImageDrawable drawable) {
         if (Build.VERSION.SDK_INT >= 28 && drawable != null) drawable.stop();
+    }
+
+    private static boolean isMp4(File file) {
+        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".mp4")) return true;
+        try (java.io.InputStream in = new java.io.BufferedInputStream(new java.io.FileInputStream(file))) {
+            byte[] h = new byte[12];
+            int n = in.read(h);
+            return n == 12 && h[4] == 'f' && h[5] == 't' && h[6] == 'y' && h[7] == 'p';
+        } catch (Exception ignored) { return false; }
+    }
+
+    private void showVideo(File file) {
+        if (video != null) { video.stopPlayback(); root.removeView(video); }
+        stopAnimation(currentAnimation); currentAnimation = null;
+        if (current != null) { current.recycle(); current = null; }
+        image.setImageDrawable(null);
+        videoPrepared = false;
+        VideoView player = new VideoView(root.getContext());
+        video = player;
+        player.setFocusable(false);
+        player.setOnPreparedListener(mp -> {
+            if (video != player || closed) { player.stopPlayback(); return; }
+            mp.setVolume(0f, 0f);
+            mp.setLooping(true);
+            videoPrepared = true;
+            if (active) player.start();
+        });
+        player.setOnErrorListener((mp, what, extra) -> {
+            if (video == player) {
+                videoPrepared = false;
+                player.setVisibility(View.GONE);
+                root.setBackgroundColor(backgroundColor);
+                Log.w("TvHome.Wallpaper", "Unsupported or unreadable MP4 wallpaper: " + file.getName());
+            }
+            return true;
+        });
+        root.addView(player, 0, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        player.setVideoPath(file.getAbsolutePath());
+        root.setBackground(null);
+        image.setForeground(dimColor == 0 ? null : new ColorDrawable(dimColor));
     }
 
     private static boolean isGif(File file) {

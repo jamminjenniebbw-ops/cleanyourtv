@@ -185,17 +185,19 @@ replace(
 )
 
 
+
 # MP4 preview: decode a representative first frame for the Look sheet's pinned
 # preview. BitmapFactory cannot decode MP4, so without this the preview is black.
 replace(
     "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/LookEditor.kt",
     "import android.graphics.BitmapFactory",
-    "import android.graphics.BitmapFactory\\nimport android.media.MediaMetadataRetriever"
+    """import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever"""
 )
 replace(
     "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/LookEditor.kt",
-    `runCatching { BitmapFactory.decodeFile(p, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap() }.getOrNull()`,
-    `runCatching {
+    """runCatching { BitmapFactory.decodeFile(p, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap() }.getOrNull()""",
+    """runCatching {
                     val mp4 = java.io.RandomAccessFile(p, "r").use { file ->
                         if (file.length() < 12) false else { file.seek(4); file.readByte() == 'f'.code.toByte() &&
                             file.readByte() == 't'.code.toByte() && file.readByte() == 'y'.code.toByte() && file.readByte() == 'p'.code.toByte() }
@@ -213,5 +215,5 @@ replace(
                             }
                         } finally { retriever.release() }
                     } else BitmapFactory.decodeFile(p, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
-                }.getOrNull()`
+                }.getOrNull()"""
 )

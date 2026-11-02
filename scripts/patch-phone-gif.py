@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the small, auditable GIF pass-through patch to the pinned v0.4.7 phone source."""
+"""Apply byte-preserving GIF wallpaper support (GIF <= 1,000,000 bytes; JPEG limit unchanged) to pinned v0.4.7."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "phone"

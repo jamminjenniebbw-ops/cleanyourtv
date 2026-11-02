@@ -319,6 +319,7 @@ final class WallpaperPlayer {
     }
 
     private void showVideo(File file) {
+        displayed = file.getName();
         if (video != null) { video.stopPlayback(); root.removeView(video); }
         stopAnimation(currentAnimation); currentAnimation = null;
         if (current != null) { current.recycle(); current = null; }

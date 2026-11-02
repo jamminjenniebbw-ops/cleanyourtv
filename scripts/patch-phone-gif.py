@@ -17,13 +17,15 @@ def replace(path: str, old: str, new: str) -> None:
 replace(
     "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/OwnPhoto.kt",
     '''    const val MAX_BYTES = 280_000''',
-    '''    const val MAX_BYTES = 1_000_000'''
+    '''    const val MAX_BYTES = 280_000
+    const val GIF_MAX_BYTES = 1_000_000'''
 )
 
 replace(
     "core/flows/src/main/kotlin/tv/cleanyour/core/flows/OwnPicture.kt",
     '''    const val MAX_BYTES = 280_000''',
-    '''    const val MAX_BYTES = 1_000_000'''
+    '''    const val MAX_BYTES = 280_000
+    const val GIF_MAX_BYTES = 1_000_000'''
 )
 
 replace(
@@ -35,7 +37,9 @@ replace(
         val gif = image.size >= 6 && image[0] == 'G'.code.toByte() && image[1] == 'I'.code.toByte() &&
             image[2] == 'F'.code.toByte() && image[3] == '8'.code.toByte() &&
             (image[4] == '7'.code.toByte() || image[4] == '9'.code.toByte()) && image[5] == 'a'.code.toByte()
-        require(image.size in 4..MAX_BYTES && (jpeg || gif)) { "not a JPEG or GIF of at most $MAX_BYTES bytes" }
+        require((jpeg && image.size in 4..MAX_BYTES) || (gif && image.size in 6..GIF_MAX_BYTES)) {
+            "not a JPEG of at most $MAX_BYTES bytes or a GIF of at most $GIF_MAX_BYTES bytes"
+        }
     }'''
 )
 
@@ -66,8 +70,8 @@ replace(
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     val out = java.io.ByteArrayOutputStream()
                     val buffer = ByteArray(8192)
-                    while (out.size() <= OwnPhoto.MAX_BYTES) {
-                        val count = input.read(buffer, 0, minOf(buffer.size, OwnPhoto.MAX_BYTES + 1 - out.size()))
+                    while (out.size() <= OwnPhoto.GIF_MAX_BYTES) {
+                        val count = input.read(buffer, 0, minOf(buffer.size, OwnPhoto.GIF_MAX_BYTES + 1 - out.size()))
                         if (count < 0) break
                         if (count == 0) {
                             val singleByte = input.read()
@@ -82,7 +86,7 @@ replace(
             }.getOrNull()
         }
         if (picked != null && OwnPhoto.isGif(picked)) {
-            if (picked.size <= OwnPhoto.MAX_BYTES) onDone(picked, startDim) else failed = true
+            if (picked.size <= OwnPhoto.GIF_MAX_BYTES) onDone(picked, startDim) else failed = true
             return@LaunchedEffect
         }
         val b = withContext(Dispatchers.IO) { OwnPhoto.decode(context.contentResolver, uri) }

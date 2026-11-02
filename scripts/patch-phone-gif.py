@@ -15,6 +15,12 @@ def replace(path: str, old: str, new: str) -> None:
     print(f"patched {path}")
 
 replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/OwnPhoto.kt",
+    '''    const val MAX_BYTES = 280_000''',
+    '''    const val MAX_BYTES = 1_000_000'''
+)
+
+replace(
     "core/flows/src/main/kotlin/tv/cleanyour/core/flows/OwnPicture.kt",
     '''    private fun check(jpeg: ByteArray) =
         require(jpeg.size in 4..MAX_BYTES && jpeg[0] == 0xFF.toByte() && jpeg[1] == 0xD8.toByte()) { "not a JPEG of at most $MAX_BYTES bytes" }''',

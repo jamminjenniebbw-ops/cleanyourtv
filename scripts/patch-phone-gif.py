@@ -57,7 +57,13 @@ replace(
                     while (out.size() <= OwnPhoto.MAX_BYTES) {
                         val count = input.read(buffer, 0, minOf(buffer.size, OwnPhoto.MAX_BYTES + 1 - out.size()))
                         if (count < 0) break
-                        out.write(buffer, 0, count)
+                        if (count == 0) {
+                            val = input.read()
+                            if (val < 0) break
+                            out.write(val)
+                        } else {
+                            out.write(buffer, 0, count)
+                        }
                     }
                     out.toByteArray()
                 }

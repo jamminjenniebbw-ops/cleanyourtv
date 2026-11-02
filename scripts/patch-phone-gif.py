@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply byte-preserving GIF wallpaper support (GIF <= 1,048,576 bytes; JPEG limit unchanged) to pinned v0.4.7."""
+"""Apply byte-preserving GIF and MP4 wallpaper support to pinned v0.4.7."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "phone"
@@ -108,4 +108,70 @@ replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
     'val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")',
     'val FILES: Set<String> = setOf("config.json", "wallpaper.jpg", "wallpaper.gif")'
+)
+
+# MP4 wallpaper: original bytes, capped at 20 MiB. The legacy wallpaper.jpg
+# transport name is retained for compatibility; the TV detects MP4 by its ftyp
+# signature, just as it detects GIF by its magic bytes.
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/OwnPhoto.kt",
+    "const val GIF_MAX_BYTES = 1_048_576",
+    "const val GIF_MAX_BYTES = 1_048_576\n    const val MP4_MAX_BYTES = 20_971_520"
+)
+
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/OwnPhoto.kt",
+    '''    // The first size and quality, in order, whose bytes fit `max`.''',
+    '''    // MP4s are sent byte-for-byte, without transcoding.
+    fun isMp4(bytes: ByteArray): Boolean =
+        bytes.size >= 12 && bytes[4] == 'f'.code.toByte() && bytes[5] == 't'.code.toByte() &&
+            bytes[6] == 'y'.code.toByte() && bytes[7] == 'p'.code.toByte()
+
+    // The first size and quality, in order, whose bytes fit `max`.'''
+)
+
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/PhotoCrop.kt",
+    "while (out.size() <= OwnPhoto.GIF_MAX_BYTES) {",
+    "while (out.size() <= OwnPhoto.MP4_MAX_BYTES) {"
+)
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/PhotoCrop.kt",
+    "OwnPhoto.GIF_MAX_BYTES + 1 - out.size()",
+    "OwnPhoto.MP4_MAX_BYTES + 1 - out.size()"
+)
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/PhotoCrop.kt",
+    '''        if (picked != null && OwnPhoto.isGif(picked)) {
+            if (picked.size <= OwnPhoto.GIF_MAX_BYTES) onDone(picked, startDim) else failed = true
+            return@LaunchedEffect
+        }''',
+    '''        if (picked != null && (OwnPhoto.isGif(picked) || OwnPhoto.isMp4(picked))) {
+            val limit = if (OwnPhoto.isMp4(picked)) OwnPhoto.MP4_MAX_BYTES else OwnPhoto.GIF_MAX_BYTES
+            if (picked.size <= limit) onDone(picked, startDim) else failed = true
+            return@LaunchedEffect
+        }'''
+)
+
+replace(
+    "core/flows/src/main/kotlin/tv/cleanyour/core/flows/OwnPicture.kt",
+    "const val GIF_MAX_BYTES = 1_048_576",
+    "const val GIF_MAX_BYTES = 1_048_576\n    const val MP4_MAX_BYTES = 20_971_520"
+)
+replace(
+    "core/flows/src/main/kotlin/tv/cleanyour/core/flows/OwnPicture.kt",
+    '''        require((jpeg && image.size in 4..MAX_BYTES) || (gif && image.size in 6..GIF_MAX_BYTES)) {
+            "not a JPEG of at most $MAX_BYTES bytes or a GIF of at most $GIF_MAX_BYTES bytes"
+        }''',
+    '''        val mp4 = image.size >= 12 && image[4] == 'f'.code.toByte() && image[5] == 't'.code.toByte() &&
+            image[6] == 'y'.code.toByte() && image[7] == 'p'.code.toByte()
+        require((jpeg && image.size in 4..MAX_BYTES) || (gif && image.size in 6..GIF_MAX_BYTES) ||
+            (mp4 && image.size in 12..MP4_MAX_BYTES)) {
+            "not a JPEG, GIF (max $GIF_MAX_BYTES bytes), or MP4 (max $MP4_MAX_BYTES bytes)"
+        }'''
+)
+replace(
+    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
+    "const val MAX_WALLPAPER_BYTES = 1_048_576L",
+    "const val MAX_WALLPAPER_BYTES = 20_971_520L"
 )

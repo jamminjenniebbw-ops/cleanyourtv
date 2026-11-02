@@ -344,6 +344,7 @@ final class WallpaperPlayer {
         if (old != null && old != bitmap) image.postDelayed(old::recycle, 500);
     }
 
+    @android.annotation.TargetApi(28)
     private void show(AnimatedImageDrawable gif) {
         Bitmap old = current;
         current = null;

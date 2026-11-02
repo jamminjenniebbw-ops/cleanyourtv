@@ -183,3 +183,35 @@ replace(
     "PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)",
     "PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)"
 )
+
+
+# MP4 preview: decode a representative first frame for the Look sheet's pinned
+# preview. BitmapFactory cannot decode MP4, so without this the preview is black.
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/LookEditor.kt",
+    "import android.graphics.BitmapFactory",
+    "import android.graphics.BitmapFactory\\nimport android.media.MediaMetadataRetriever"
+)
+replace(
+    "ui/design/src/main/kotlin/tv/cleanyour/ui/design/component/LookEditor.kt",
+    `runCatching { BitmapFactory.decodeFile(p, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap() }.getOrNull()`,
+    `runCatching {
+                    val mp4 = java.io.RandomAccessFile(p, "r").use { file ->
+                        if (file.length() < 12) false else { file.seek(4); file.readByte() == 'f'.code.toByte() &&
+                            file.readByte() == 't'.code.toByte() && file.readByte() == 'y'.code.toByte() && file.readByte() == 'p'.code.toByte() }
+                    }
+                    if (mp4) {
+                        val retriever = MediaMetadataRetriever()
+                        try {
+                            retriever.setDataSource(p)
+                            val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                            if (frame == null) null else {
+                                val scale = minOf(1f, 1280f / maxOf(frame.width, frame.height))
+                                val thumb = if (scale < 1f) Bitmap.createScaledBitmap(frame, (frame.width * scale).toInt().coerceAtLeast(1),
+                                    (frame.height * scale).toInt().coerceAtLeast(1), true) else frame
+                                thumb.asImageBitmap()
+                            }
+                        } finally { retriever.release() }
+                    } else BitmapFactory.decodeFile(p, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                }.getOrNull()`
+)

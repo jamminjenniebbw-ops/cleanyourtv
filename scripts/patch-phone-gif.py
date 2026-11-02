@@ -94,3 +94,18 @@ replace(
     }'''
 )
 
+# The upstream transport has its own, independent 300 KiB limit. Raise it to the
+# GIF limit while retaining the existing wallpaper.jpg wire name and provider route.
+replace(
+    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
+    "const val MAX_WALLPAPER_BYTES = 300L * 1024",
+    "const val MAX_WALLPAPER_BYTES = 1_000_000L"
+)
+
+# Permit the existing provider to write the same wallpaper payload under its legacy
+# filename; the launcher identifies GIF data by signature, not by the filename.
+replace(
+    "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
+    'val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")',
+    'val FILES: Set<String> = setOf("config.json", "wallpaper.jpg", "wallpaper.gif")'
+)

@@ -171,12 +171,23 @@ final class WallpaperPlayer {
     void start() {
         active = true;
         startAnimation(currentAnimation);
-        if (videoPlayer != null && videoPrepared) videoPlayer.start();
+        if (videoPlayer != null && videoPrepared) {
+            try {
+                if (!videoPlayer.isPlaying()) videoPlayer.start();
+                if (videoTexture != null && videoFile != null) scheduleVideoWatchdog(videoTexture, videoFile);
+            } catch (Exception failure) {
+                if (videoTexture != null && videoFile != null)
+                    scheduleVideoRetry(videoTexture, videoFile, "resume failure");
+            }
+        } else if (videoTexture != null && videoFile != null && videoTexture.isAvailable()) {
+            prepareVideo(videoTexture, videoTexture.getSurfaceTexture(), videoFile);
+        }
         update();
     }
 
     void stop() {
         active = false;
+        cancelVideoWatchdog();
         stopAnimation(currentAnimation);
         if (videoPlayer != null && videoPrepared && videoPlayer.isPlaying()) videoPlayer.pause();
     }

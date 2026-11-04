@@ -250,7 +250,8 @@ replace(
 replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
     "import tv.cleanyour.core.model.RemotePath",
-    "import tv.cleanyour.core.model.RemotePath\\nimport java.util.regex.Pattern"
+    '''import tv.cleanyour.core.model.RemotePath
+import java.util.regex.Pattern'''
 )
 replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
@@ -320,7 +321,14 @@ replace(
 replace(
     "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
     '''    override fun resetPlanSteps(route: FileRoute): List<Op> =''',
-    '''    // Schedule transfer is deliberately separate from the legacy one-wallpaper plan. The manifest
+    '''    replace(
+    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
+    "import tv.cleanyour.core.ops.ConfigTransportKind",
+    """import tv.cleanyour.core.ops.ConfigTransportKind
+import tv.cleanyour.core.ops.ThemeProviderLines"""
+)
+
+// Schedule transfer is deliberately separate from the legacy one-wallpaper plan. The manifest
     // is pushed last, so the TV cannot activate a new schedule until every referenced asset arrived.
     fun scheduledWallpaperPlanSteps(assets: List<Pair<String, BlobRef>>, route: FileRoute): List<Op> {
         require(assets.size in 2..33) { "a schedule needs one manifest and 1 to 32 assets" }

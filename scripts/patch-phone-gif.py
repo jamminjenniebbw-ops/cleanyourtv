@@ -251,7 +251,9 @@ replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
     "import tv.cleanyour.core.model.RemotePath",
     '''import tv.cleanyour.core.model.RemotePath
-import java.util.regex.Pattern'''
+import java.util.regex.Pattern
+
+private val SCHEDULE_IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\\\.(jpg|jpeg|png|webp|gif|mp4)", Pattern.CASE_INSENSITIVE)'''
 )
 replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",

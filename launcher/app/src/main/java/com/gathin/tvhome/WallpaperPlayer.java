@@ -171,6 +171,7 @@ final class WallpaperPlayer {
                     show(bitmap);
                     root.setBackground(null);
                     displayed = first.getName();
+                    displayedPath = first.getAbsolutePath();
                     showCaption(false);
                     if (!fromSchedule && !displayed.equals(previous)) {
                         preferences.edit().putString("image", displayed)

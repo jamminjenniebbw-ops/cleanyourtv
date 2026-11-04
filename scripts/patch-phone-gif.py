@@ -274,7 +274,7 @@ replace(
         if (path.segments.size == 1) return path.segments[0] in FILES
         if (path.segments.size != 2 || path.segments[0] != "wallpapers") return false
         val name = path.segments[1]
-        return name == "wallpaper_schedule.json" || SCHEDULE_IMAGE.matches(name)
+        return name == "wallpaper_schedule.json" || SCHEDULE_IMAGE.matcher(name).matches()
     }
 
     fun uri(path: RemotePath): String {

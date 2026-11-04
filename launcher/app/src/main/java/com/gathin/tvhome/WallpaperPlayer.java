@@ -80,6 +80,7 @@ final class WallpaperPlayer {
     private boolean closed;
     private boolean loading;
     private String displayed = "";
+    private String displayedPath = "";
     /** wallpaper_captions: the shown picture's name from wallpapers/captions.txt; null when off or there are none. */
     private final TextView caption;
     private final Map<String, String> names;
@@ -156,6 +157,7 @@ final class WallpaperPlayer {
                 if (gif != null) {
                     show(gif);
                     displayed = first.getName();
+                    displayedPath = first.getAbsolutePath();
                     showCaption(false);
                     if (!fromSchedule && !displayed.equals(previous)) {
                         preferences.edit().putString("image", displayed)
@@ -226,6 +228,7 @@ final class WallpaperPlayer {
         // let Android reclaim its native buffer after rendering releases it instead of recycling it mid-frame.
         current = null;
         displayed = "";
+        displayedPath = "";
         root.setBackgroundColor(backgroundColor);
     }
 
@@ -277,7 +280,7 @@ final class WallpaperPlayer {
                 selected = WallpaperRotation.pick(playable, previous, order, random);
             }
         }
-        if (selected == null || selected.getName().equals(displayed)) return;
+        if (selected == null || selected.getAbsolutePath().equals(displayedPath)) return;
         File next = selected;
         final boolean scheduledSelection = fromSchedule;
         loading = true;
@@ -300,6 +303,7 @@ final class WallpaperPlayer {
                 }
                 if (gif != null) show(gif); else show(bitmap);
                 displayed = next.getName();
+                displayedPath = next.getAbsolutePath();
                 showCaption(true);
                 if (!scheduledSelection && (!displayed.equals(previous) || changed == 0)) {
                     preferences.edit().putString("image", displayed)
@@ -386,6 +390,7 @@ final class WallpaperPlayer {
 
     private void showVideo(File file) {
         displayed = file.getName();
+        displayedPath = file.getAbsolutePath();
         releaseVideo();
         stopAnimation(currentAnimation);
         currentAnimation = null;

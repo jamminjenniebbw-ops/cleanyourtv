@@ -254,13 +254,16 @@ final class PrayerTimesPanel {
         String cacheKey = "schedule_myquran_" + d.getYear();
         android.content.SharedPreferences prefs = activity.getSharedPreferences("prayer_times_panel", 0);
         String cached = prefs.getString(cacheKey, "");
+        boolean fromMyQuranCache = !cached.isEmpty();
         // Migrate a previously downloaded schedule to keep existing offline installs usable.
         if (cached.isEmpty()) cached = prefs.getString("schedule_" + d.getYear(), "");
         if (!cached.isEmpty()) parse(cached, d);
 
         if (!hasValidatedInternet()) {
             if (todayTimes.isEmpty()) status.setText("Offline • menunggu jadwal tersimpan");
-            else status.setText("Jadwal tersimpan • offline");
+            else status.setText(fromMyQuranCache
+                    ? "Offline • data Kementerian Agama Republik Indonesia tersimpan"
+                    : "Offline • jadwal lama tersimpan");
             return;
         }
 
@@ -269,7 +272,7 @@ final class PrayerTimesPanel {
         long lastSuccess = activity.getSharedPreferences("prayer_times_panel", 0)
                 .getLong("last_success_myquran_" + d.getYear(), 0L);
         if (!forceRefresh && lastSuccess > 0L && now - lastSuccess < 24L * 60L * 60L * 1000L) {
-            if (!todayTimes.isEmpty()) status.setText("Jadwal tersimpan • diperbarui dari myQuran");
+            if (!todayTimes.isEmpty()) status.setText("Sumber: Kementerian Agama Republik Indonesia • jadwal tersimpan");
             return;
         }
         fetching = true;
@@ -312,7 +315,7 @@ final class PrayerTimesPanel {
                     fetching = false;
                     fetchAttempt = 0;
                     parse(json, LocalDate.now(ZONE));
-                    status.setText("Jadwal diperbarui • myQuran (data Kemenag)");
+                    status.setText("Sumber: Kementerian Agama Republik Indonesia • jadwal diperbarui");
                 });
             } catch (Exception e) {
                 final String error = e.getClass().getSimpleName()
@@ -320,7 +323,7 @@ final class PrayerTimesPanel {
                 activity.runOnUiThread(() -> {
                     fetching = false;
                     if (todayTimes.isEmpty()) status.setText("Jadwal gagal dimuat • " + error);
-                    else status.setText("Jadwal tersimpan • pembaruan gagal");
+                    else status.setText("Jadwal tersimpan • pembaruan gagal • Kementerian Agama Republik Indonesia");
                     updateNext();
                     fetchAttempt++;
                     long delay = Math.min(15 * 60_000L, 30_000L * (1L << Math.min(fetchAttempt - 1, 4)));
@@ -415,7 +418,7 @@ final class PrayerTimesPanel {
                     todayTimes.add(t); values[p].setText(t);
                 }
                 loadedDate = date;
-                status.setText("Jadwal diperbarui • " + date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", new Locale("id","ID"))));
+                status.setText("Kementerian Agama Republik Indonesia • " + date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", new Locale("id","ID"))));
                 updateNext();
                 return;
             }

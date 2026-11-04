@@ -242,3 +242,119 @@ replace(
                     }
                 }.getOrNull()"""
 )
+
+
+# Scheduled wallpapers use the launcher's existing wallpapers/ provider namespace.
+# Keep this allowlist narrow: a manifest plus image/video files only. The staging
+# filename is flattened so the shell path remains a single safe path segment.
+replace(
+    "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
+    "import tv.cleanyour.core.model.RemotePath",
+    "import tv.cleanyour.core.model.RemotePath\\nimport java.util.regex.Pattern"
+)
+replace(
+    "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
+    '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")
+
+    // The write:''',
+    '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")
+    private val SCHEDULE_IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\\\.(jpg|jpeg|png|webp|gif|mp4)", Pattern.CASE_INSENSITIVE)
+
+    // The write:'''
+)
+replace(
+    "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
+    '''    fun isThemeFile(path: RemotePath): Boolean = path.dir == RemoteDir.OVERLAY && path.segments.size == 1 && path.segments[0] in FILES
+
+    fun uri(path: RemotePath): String {
+        require(isThemeFile(path)) { "the launcher's provider takes only ${FILES.joinToString()} in ${RemoteDir.OVERLAY.path}" }
+        return "content://$AUTHORITY/" + path.segments[0]
+    }
+
+    // Where a file is staged before the provider reads it: theme-config.json, theme-wallpaper.jpg in TMP.
+    fun stage(path: RemotePath): RemotePath {
+        require(isThemeFile(path)) { "only a theme file is staged" }
+        return RemotePath(RemoteDir.TMP, listOf(STAGE_PREFIX + path.segments[0]))
+    }''',
+    '''    fun isThemeFile(path: RemotePath): Boolean {
+        if (path.dir != RemoteDir.OVERLAY) return false
+        if (path.segments.size == 1) return path.segments[0] in FILES
+        if (path.segments.size != 2 || path.segments[0] != "wallpapers") return false
+        val name = path.segments[1]
+        return name == "wallpaper_schedule.json" || SCHEDULE_IMAGE.matcher(name).matches()
+    }
+
+    fun uri(path: RemotePath): String {
+        require(isThemeFile(path)) { "the launcher's provider refuses this theme path" }
+        return "content://$AUTHORITY/" + path.segments.joinToString("/")
+    }
+
+    // Flatten nested destinations into a single safe temporary filename.
+    fun stage(path: RemotePath): RemotePath {
+        require(isThemeFile(path)) { "only an allowlisted theme file is staged" }
+        return RemotePath(RemoteDir.TMP, listOf(STAGE_PREFIX + path.segments.joinToString("-")))
+    }'''
+)
+replace(
+    "core/ops/src/test/kotlin/tv/cleanyour/core/ops/ThemeProviderLinesTest.kt",
+    '''            RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", "a.jpg")))) {''',
+    '''            RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", "notes.txt")))) {'''
+)
+replace(
+    "core/ops/src/test/kotlin/tv/cleanyour/core/ops/ThemeProviderLinesTest.kt",
+    '''    @Test fun aPushThroughTheProviderStagesThenWritesThenReadsBackAsTheLauncher() {''',
+    '''    @Test fun scheduledWallpaperAssetsUseOnlyTheNestedWallpapersAllowlist() {
+        val asset = RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", "dawn-loop.MP4"))
+        val manifest = RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", "wallpaper_schedule.json"))
+        assertTrue(ThemeProviderLines.isThemeFile(asset))
+        assertTrue(ThemeProviderLines.isThemeFile(manifest))
+        assertEquals("content://com.gathin.tvhome.theme/wallpapers/dawn-loop.MP4", ThemeProviderLines.uri(asset))
+        assertEquals(RemotePath(RemoteDir.TMP, listOf("theme-wallpapers-dawn-loop.MP4")), ThemeProviderLines.stage(asset))
+        assertEquals("content://com.gathin.tvhome.theme/wallpapers/wallpaper_schedule.json", ThemeProviderLines.uri(manifest))
+        assertFalse(ThemeProviderLines.isThemeFile(RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", "notes.txt"))))
+        assertFalse(ThemeProviderLines.isThemeFile(RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", "sub", "dawn.jpg"))))
+    }
+
+    @Test fun aPushThroughTheProviderStagesThenWritesThenReadsBackAsTheLauncher() {'''
+)
+replace(
+    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
+    '''    override fun resetPlanSteps(route: FileRoute): List<Op> =''',
+    '''    // Schedule transfer is deliberately separate from the legacy one-wallpaper plan. The manifest
+    // is pushed last, so the TV cannot activate a new schedule until every referenced asset arrived.
+    fun scheduledWallpaperPlanSteps(assets: List<Pair<String, BlobRef>>, route: FileRoute): List<Op> {
+        require(assets.size in 2..33) { "a schedule needs one manifest and 1 to 32 assets" }
+        val names = assets.map { it.first }
+        require(names.distinct().size == names.size) { "scheduled wallpaper filenames must be unique" }
+        require(names.count { it == "wallpaper_schedule.json" } == 1) { "exactly one wallpaper_schedule.json is required" }
+        var total = 0L
+        assets.forEach { (name, blob) ->
+            val path = RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", name))
+            require(ThemeProviderLines.isThemeFile(path)) { "unsupported scheduled wallpaper file: $name" }
+            val limit = if (name == "wallpaper_schedule.json") MAX_SCHEDULE_MANIFEST_BYTES else MAX_SCHEDULE_ASSET_BYTES
+            require(blob.size in 1..limit) { "$name must be 1 to $limit bytes" }
+            total = Math.addExact(total, blob.size)
+        }
+        require(total <= MAX_SCHEDULE_TOTAL_BYTES) { "scheduled wallpaper package exceeds $MAX_SCHEDULE_TOTAL_BYTES bytes" }
+        val pushes = assets.sortedBy { it.first == "wallpaper_schedule.json" }.map { (name, blob) ->
+            Op.PushAsset(blob, RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", name)), blob.sha256, route)
+        }
+        return buildList {
+            add(Op.StartActivity(launcher, wait = true))
+            add(Op.Mkdir(RemoteDir.TMP))
+            if (route == FileRoute.SYNC) add(Op.Mkdir(RemoteDir.OVERLAY))
+            addAll(pushes)
+            add(Op.RestartHome(launcher))
+        }
+    }
+
+    override fun resetPlanSteps(route: FileRoute): List<Op> ='''
+)
+replace(
+    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
+    '''        const val MAX_WALLPAPER_BYTES = 300L * 1024''',
+    '''        const val MAX_WALLPAPER_BYTES = 300L * 1024
+        const val MAX_SCHEDULE_MANIFEST_BYTES = 64L * 1024
+        const val MAX_SCHEDULE_ASSET_BYTES = 20L * 1024 * 1024
+        const val MAX_SCHEDULE_TOTAL_BYTES = 100L * 1024 * 1024'''
+)

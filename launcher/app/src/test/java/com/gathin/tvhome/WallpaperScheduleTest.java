@@ -63,7 +63,9 @@ public class WallpaperScheduleTest {
 
     @Test public void rejectsUnknownVersionAndEmptyManifest() throws Exception {
         File dir = Files.createTempDirectory("schedule").toFile();
-        assertTrue(WallpaperSchedule.load(manifest(dir, "{\\"version\\":2,\\"slots\\":[]}")).isEmpty());
+        String q = q();
+        String unknownVersion = "{" + q + "version" + q + ":2," + q + "slots" + q + ":[]}";
+        assertTrue(WallpaperSchedule.load(manifest(dir, unknownVersion)).isEmpty());
         assertTrue(WallpaperSchedule.load(manifest(dir, "")).isEmpty());
     }
 

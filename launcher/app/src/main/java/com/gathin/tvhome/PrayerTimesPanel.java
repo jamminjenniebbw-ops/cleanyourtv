@@ -233,7 +233,7 @@ final class PrayerTimesPanel {
                     if (enabled && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                             && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
                         handler.postDelayed(() -> {
-                            if (enabled && hasValidatedInternet()) load();
+                            if (enabled && hasValidatedInternet()) load(true);
                         }, 1500L);
                     }
                 }

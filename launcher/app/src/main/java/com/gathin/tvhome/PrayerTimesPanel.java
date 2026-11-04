@@ -32,12 +32,15 @@ final class PrayerTimesPanel {
     private final String[] names = {"Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"};
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
-    private LocalDate loadedDate;    /**
+    private LocalDate loadedDate;
+    private boolean enabled;
+    /**
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
      */
     static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean enabled) {
         PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand);
+        p.enabled = enabled;
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
         int panelWidth = Math.min((int)(650*d), (int)(screenWidth * .54f));
@@ -61,14 +64,19 @@ final class PrayerTimesPanel {
     }
 
     void hideForNavigation() {
-        panel.setVisibility(View.GONE);
+        if (enabled) panel.setVisibility(View.GONE);
     }
 
     void showAtHomeTop() {
-        panel.setVisibility(View.VISIBLE);
+        if (enabled) panel.setVisibility(View.VISIBLE);
     }
 
     void onGridScrolled(int verticalOffsetPx) {
+        // Scrolling must never override the user's master ON/OFF preference.
+        if (!enabled) {
+            panel.setVisibility(View.GONE);
+            return;
+        }
         // Visibility follows the actual Home scroll position, not the remote key event.
         // At the top (dock/first shelf) the panel is visible; once the app grid moves down,
         // hide it so it cannot cover the header or the rows below. Returning to offset 0 restores it.

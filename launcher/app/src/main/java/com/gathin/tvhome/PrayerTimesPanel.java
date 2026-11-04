@@ -203,8 +203,8 @@ final class PrayerTimesPanel {
             String[] urls = {
                     target,
                     target.replace("https://sajadah.org", "https://www.sajadah.org"),
-                    "https://api.allorigins.win/raw?url=" + java.net.URLEncoder.encode(target, "UTF-8"),
-                    "https://corsproxy.io/?url=" + java.net.URLEncoder.encode(target, "UTF-8")
+                    "https://api.allorigins.win/raw?url=" + android.net.Uri.encode(target),
+                    "https://corsproxy.io/?url=" + android.net.Uri.encode(target)
             };
             Exception lastError = null;
             for (String endpoint : urls) {

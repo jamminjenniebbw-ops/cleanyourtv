@@ -36,4 +36,9 @@ final class ThemeFiles {
     static boolean collectionImage(String name) {
         return name != null && !name.startsWith(".") && IMAGE.matcher(name).matches();
     }
+
+    /** Files removed when replacing/clearing the wallpaper collection, including its schedule manifest. */
+    static boolean collectionFile(String name) {
+        return collectionImage(name) || WallpaperSchedule.FILE_NAME.equals(name);
+    }
 }

@@ -366,6 +366,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         @Override
         public void onReceive(Context context, Intent intent) {
             updateClockVisibility();
+            if (wallpaperPlayer != null) wallpaperPlayer.onTimeChanged();
         }
     };
     private final Runnable minuteTick = new Runnable() {

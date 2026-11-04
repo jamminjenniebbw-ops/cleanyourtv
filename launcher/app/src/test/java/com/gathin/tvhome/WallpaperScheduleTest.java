@@ -12,7 +12,7 @@ public class WallpaperScheduleTest {
         return dir;
     }
 
-    private static String q() { return "\\\""; }
+    private static String q() { return String.valueOf((char) 34); }
 
     @Test public void selectsRegularAndOvernightSlots() throws Exception {
         File dir = Files.createTempDirectory("schedule").toFile();

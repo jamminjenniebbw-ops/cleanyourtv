@@ -226,7 +226,7 @@ final class PrayerTimesPanel {
             networkCallback = new ConnectivityManager.NetworkCallback() {
                 @Override public void onAvailable(Network network) {
                     handler.postDelayed(() -> {
-                        if (enabled && hasValidatedInternet()) load();
+                        if (enabled && hasValidatedInternet()) load(true);
                     }, 1500L);
                 }
                 @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) {
@@ -244,7 +244,9 @@ final class PrayerTimesPanel {
         } catch (Exception ignored) { }
     }
 
-    private void load() {
+    private void load() { load(false); }
+
+    private void load(boolean forceRefresh) {
         if (!enabled) return;
         LocalDate d = LocalDate.now(ZONE);
         String cacheKey = "schedule_myquran_" + d.getYear();
@@ -261,7 +263,7 @@ final class PrayerTimesPanel {
         if (fetching || now - lastFetchStartedAt < 10_000L) return;
         long lastSuccess = activity.getSharedPreferences("prayer_times_panel", 0)
                 .getLong("last_success_myquran_" + d.getYear(), 0L);
-        if (lastSuccess > 0L && now - lastSuccess < 24L * 60L * 60L * 1000L) {
+        if (!forceRefresh && lastSuccess > 0L && now - lastSuccess < 24L * 60L * 60L * 1000L) {
             if (!todayTimes.isEmpty()) status.setText("Jadwal tersimpan • diperbarui dari myQuran");
             return;
         }

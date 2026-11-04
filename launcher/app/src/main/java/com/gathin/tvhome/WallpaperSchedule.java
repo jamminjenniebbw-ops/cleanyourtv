@@ -13,9 +13,9 @@ final class WallpaperSchedule {
     static final String FILE_NAME = "wallpaper_schedule.json";
     private static final int MAX_BYTES = 64 * 1024;
     private static final Pattern SLOT = Pattern.compile(
-            "\\{\\s*\\"start\\"\\s*:\\s*\\"([0-9]{2}:[0-9]{2})\\"\\s*,"
-          + "\\s*\\"end\\"\\s*:\\s*\\"([0-9]{2}:[0-9]{2})\\"\\s*,"
-          + "\\s*\\"file\\"\\s*:\\s*\\"([A-Za-z0-9_.-]+)\\"\\s*\\}");
+            "\\{\\s*\\x22start\\x22\\s*:\\s*\\x22([0-9]{2}:[0-9]{2})\\x22\\s*,"
+          + "\\s*\\x22end\\x22\\s*:\\s*\\x22([0-9]{2}:[0-9]{2})\\x22\\s*,"
+          + "\\s*\\x22file\\x22\\s*:\\s*\\x22([A-Za-z0-9_.-]+)\\x22\\s*\\}");
     private static final Pattern NAME = Pattern.compile(
             "[A-Za-z0-9_.-]+\\.(jpg|jpeg|png|webp|gif|mp4)", Pattern.CASE_INSENSITIVE);
 
@@ -23,13 +23,11 @@ final class WallpaperSchedule {
         final int startMinute;
         final int endMinute;
         final File file;
-
         Slot(int startMinute, int endMinute, File file) {
             this.startMinute = startMinute;
             this.endMinute = endMinute;
             this.file = file;
         }
-
         boolean contains(int minute) {
             return startMinute < endMinute
                     ? minute >= startMinute && minute < endMinute
@@ -38,20 +36,13 @@ final class WallpaperSchedule {
     }
 
     private final List<Slot> slots;
-
-    private WallpaperSchedule(List<Slot> slots) {
-        this.slots = slots;
-    }
-
-    static WallpaperSchedule empty() {
-        return new WallpaperSchedule(new ArrayList<>());
-    }
+    private WallpaperSchedule(List<Slot> slots) { this.slots = slots; }
+    static WallpaperSchedule empty() { return new WallpaperSchedule(new ArrayList<>()); }
 
     static WallpaperSchedule load(File directory) {
         File manifest = directory == null ? null : new File(directory, FILE_NAME);
         if (manifest == null || !manifest.isFile() || manifest.length() <= 0
                 || manifest.length() > MAX_BYTES) return empty();
-
         try {
             byte[] bytes = new byte[(int) manifest.length()];
             try (FileInputStream input = new FileInputStream(manifest)) {
@@ -63,8 +54,8 @@ final class WallpaperSchedule {
                 }
             }
             String json = new String(bytes, StandardCharsets.UTF_8);
-            if (!json.matches("(?s).*\\"version\\"\\s*:\\s*1\\b.*")
-                    || !json.contains("\\"slots\\"")) return empty();
+            if (!json.matches("(?s).*\\x22version\\x22\\s*:\\s*1\\b.*")
+                    || !json.contains("slots")) return empty();
 
             Matcher matcher = SLOT.matcher(json);
             List<Slot> parsed = new ArrayList<>();
@@ -86,8 +77,7 @@ final class WallpaperSchedule {
                 }
                 parsed.add(new Slot(start, end, file));
             }
-            // Reject malformed slot objects instead of silently accepting a partial schedule.
-            String slotsPart = json.substring(json.indexOf("\\"slots\\""));
+            String slotsPart = json.substring(json.indexOf("slots"));
             int objectCount = 0;
             Matcher objects = Pattern.compile("\\{").matcher(slotsPart);
             while (objects.find()) objectCount++;
@@ -103,10 +93,7 @@ final class WallpaperSchedule {
         for (Slot slot : slots) if (slot.contains(minute)) return slot.file;
         return null;
     }
-
-    boolean isEmpty() {
-        return slots.isEmpty();
-    }
+    boolean isEmpty() { return slots.isEmpty(); }
 
     private static int minute(String value) {
         if (value == null || !value.matches("[0-9]{2}:[0-9]{2}")) return -1;

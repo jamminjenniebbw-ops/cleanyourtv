@@ -37,6 +37,7 @@ final class PrayerTimesPanel {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
     private LocalDate loadedDate;
+    private LocalDate lastLoadAttemptDate;
     private boolean enabled;
     private boolean fetching;
     private long lastFetchStartedAt;
@@ -199,7 +200,7 @@ final class PrayerTimesPanel {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             LocalDate d = LocalDate.now(ZONE);
-            if (loadedDate == null || !d.equals(loadedDate)) load();
+            if (!d.equals(loadedDate) && (lastLoadAttemptDate == null || !d.equals(lastLoadAttemptDate))) load();
             else updateNext();
             handler.postDelayed(this, 1_000L);
         }
@@ -249,6 +250,7 @@ final class PrayerTimesPanel {
     private void load(boolean forceRefresh) {
         if (!enabled) return;
         LocalDate d = LocalDate.now(ZONE);
+        lastLoadAttemptDate = d;
         String cacheKey = "schedule_myquran_" + d.getYear();
         android.content.SharedPreferences prefs = activity.getSharedPreferences("prayer_times_panel", 0);
         String cached = prefs.getString(cacheKey, "");

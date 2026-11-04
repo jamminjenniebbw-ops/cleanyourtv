@@ -41,4 +41,30 @@ public class WallpaperScheduleTest {
                 + "{" + q + "start" + q + ":" + q + "02:00" + q + "," + q + "end" + q + ":" + q + "06:00" + q + "," + q + "file" + q + ":" + q + "missing.jpg" + q + "}]}";
         assertTrue(WallpaperSchedule.load(manifest(dir, missing)).isEmpty());
     }
+
+    @Test public void gapsFallBackAndInvalidTimeOrNamesAreRejected() throws Exception {
+        File dir = Files.createTempDirectory("schedule").toFile();
+        Files.write(new File(dir, "morning.jpg").toPath(), new byte[]{1});
+        String q = q();
+        String valid = "{" + q + "version" + q + ":1," + q + "slots" + q + ":["
+                + "{" + q + "start" + q + ":" + q + "06:00" + q + "," + q + "end" + q + ":" + q + "08:00" + q + "," + q + "file" + q + ":" + q + "morning.jpg" + q + "}]}";
+        WallpaperSchedule schedule = WallpaperSchedule.load(manifest(dir, valid));
+        assertNull(schedule.at(5 * 60));
+        assertEquals("morning.jpg", schedule.at(6 * 60).getName());
+        assertNull(schedule.at(8 * 60));
+
+        String badTime = valid.replace("06:00", "24:00");
+        assertTrue(WallpaperSchedule.load(manifest(dir, badTime)).isEmpty());
+        String badName = valid.replace("morning.jpg", "../outside.jpg");
+        assertTrue(WallpaperSchedule.load(manifest(dir, badName)).isEmpty());
+        String zeroLength = valid.replace("06:00", "08:00").replace("08:00", "08:00");
+        assertTrue(WallpaperSchedule.load(manifest(dir, zeroLength)).isEmpty());
+    }
+
+    @Test public void rejectsUnknownVersionAndEmptyManifest() throws Exception {
+        File dir = Files.createTempDirectory("schedule").toFile();
+        assertTrue(WallpaperSchedule.load(manifest(dir, "{\\"version\\":2,\\"slots\\":[]}")).isEmpty());
+        assertTrue(WallpaperSchedule.load(manifest(dir, "")).isEmpty());
+    }
+
 }

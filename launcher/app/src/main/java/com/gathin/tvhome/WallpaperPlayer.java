@@ -269,6 +269,7 @@ final class WallpaperPlayer {
     void close() {
         active = false;
         closed = true;
+        videoHandler.removeCallbacks(scheduleBoundary);
         stopAnimation(currentAnimation);
         currentAnimation = null;
         releaseVideo();

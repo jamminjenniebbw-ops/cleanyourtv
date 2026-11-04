@@ -57,7 +57,7 @@ public class WallpaperScheduleTest {
         assertTrue(WallpaperSchedule.load(manifest(dir, badTime)).isEmpty());
         String badName = valid.replace("morning.jpg", "../outside.jpg");
         assertTrue(WallpaperSchedule.load(manifest(dir, badName)).isEmpty());
-        String zeroLength = valid.replace("06:00", "08:00").replace("08:00", "08:00");
+        String zeroLength = valid.replace("06:00", "08:00");
         assertTrue(WallpaperSchedule.load(manifest(dir, zeroLength)).isEmpty());
     }
 

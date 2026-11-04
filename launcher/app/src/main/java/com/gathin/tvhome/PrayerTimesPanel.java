@@ -250,7 +250,10 @@ final class PrayerTimesPanel {
         if (!enabled) return;
         LocalDate d = LocalDate.now(ZONE);
         String cacheKey = "schedule_myquran_" + d.getYear();
-        String cached = activity.getSharedPreferences("prayer_times_panel", 0).getString(cacheKey, "");
+        android.content.SharedPreferences prefs = activity.getSharedPreferences("prayer_times_panel", 0);
+        String cached = prefs.getString(cacheKey, "");
+        // Migrate a previously downloaded schedule to keep existing offline installs usable.
+        if (cached.isEmpty()) cached = prefs.getString("schedule_" + d.getYear(), "");
         if (!cached.isEmpty()) parse(cached, d);
 
         if (!hasValidatedInternet()) {
@@ -288,45 +291,19 @@ final class PrayerTimesPanel {
                 }
                 if (cityId == null || cityId.isEmpty()) throw new java.io.IOException("ID Kota Bandung tidak ditemukan");
 
-                JSONObject normalized = new JSONObject();
-                JSONArray fields = new JSONArray();
-                for (String field : new String[]{"date", "fajr", "dhuhr", "asr", "maghrib", "isha"}) fields.put(field);
-                normalized.put("fields", fields);
-                JSONArray days = new JSONArray();
-                for (int month = 1; month <= 12; month++) {
-                    String period = String.format(Locale.ROOT, "%04d-%02d", d.getYear(), month);
-                    JSONObject monthRoot = new JSONObject(request(API_BASE + "/jadwal/" + cityId + "/" + period));
-                    if (!monthRoot.optBoolean("status")) throw new java.io.IOException("Jadwal " + period + " tidak tersedia");
-                    JSONObject data = monthRoot.optJSONObject("data");
-                    JSONObject schedule = data == null ? null : data.optJSONObject("jadwal");
-                    if (schedule == null || schedule.length() < 27)
-                        throw new java.io.IOException("Format jadwal " + period + " tidak lengkap");
-                    Iterator<String> dates = schedule.keys();
-                    while (dates.hasNext()) {
-                        String dateKey = dates.next();
-                        JSONObject item = schedule.optJSONObject(dateKey);
-                        if (item == null) continue;
-                        String[] keys = {"subuh", "dzuhur", "ashar", "maghrib", "isya"};
-                        JSONArray row = new JSONArray();
-                        row.put(dateKey);
-                        boolean valid = true;
-                        for (String key : keys) {
-                            String time = item.optString(key, "");
-                            if (!time.matches("\\d{2}:\\d{2}")) { valid = false; break; }
-                            row.put(time);
-                        }
-                        if (valid) days.put(row);
-                    }
-                }
-                if (days.length() < (Year.isLeap(d.getYear()) ? 366 : 365))
-                    throw new java.io.IOException("Data tahunan tidak lengkap (" + days.length() + " hari)");
-                normalized.put("days", days);
-                String json = normalized.toString();
-                // Replace the last-good cache only after every month and every day's five times validate.
-                activity.getSharedPreferences("prayer_times_panel", 0).edit()
+                String json = fetchFullYear(cityId, d.getYear());
+                // In the last quarter, pre-cache next year's schedule so New Year's Day also works offline.
+                String nextYearJson = null;
+                if (d.getMonthValue() >= 10) nextYearJson = fetchFullYear(cityId, d.getYear() + 1);
+                android.content.SharedPreferences.Editor editor = prefs.edit()
                         .putString(cacheKey, json)
-                        .putLong("last_success_myquran_" + d.getYear(), System.currentTimeMillis())
-                        .apply();
+                        .putLong("last_success_myquran_" + d.getYear(), System.currentTimeMillis());
+                if (nextYearJson != null) {
+                    editor.putString("schedule_myquran_" + (d.getYear() + 1), nextYearJson)
+                            .putLong("last_success_myquran_" + (d.getYear() + 1), System.currentTimeMillis());
+                }
+                // Replace last-good caches only after all requested months and dates validate.
+                editor.apply();
                 activity.runOnUiThread(() -> {
                     fetching = false;
                     fetchAttempt = 0;
@@ -348,6 +325,44 @@ final class PrayerTimesPanel {
                 });
             }
         }, "PrayerTimesMyQuranFetch").start();
+    }
+
+    private String fetchFullYear(String cityId, int year) throws Exception {
+        JSONObject normalized = new JSONObject();
+        JSONArray fields = new JSONArray();
+        for (String field : new String[]{"date", "fajr", "dhuhr", "asr", "maghrib", "isha"}) fields.put(field);
+        normalized.put("fields", fields);
+        JSONArray days = new JSONArray();
+        for (int month = 1; month <= 12; month++) {
+            String period = String.format(Locale.ROOT, "%04d-%02d", year, month);
+            JSONObject monthRoot = new JSONObject(request(API_BASE + "/jadwal/" + cityId + "/" + period));
+            if (!monthRoot.optBoolean("status")) throw new java.io.IOException("Jadwal " + period + " tidak tersedia");
+            JSONObject data = monthRoot.optJSONObject("data");
+            JSONObject schedule = data == null ? null : data.optJSONObject("jadwal");
+            if (schedule == null || schedule.length() < 27)
+                throw new java.io.IOException("Format jadwal " + period + " tidak lengkap");
+            Iterator<String> dates = schedule.keys();
+            while (dates.hasNext()) {
+                String dateKey = dates.next();
+                JSONObject item = schedule.optJSONObject(dateKey);
+                if (item == null) continue;
+                String[] keys = {"subuh", "dzuhur", "ashar", "maghrib", "isya"};
+                JSONArray row = new JSONArray();
+                row.put(dateKey);
+                boolean valid = true;
+                for (String key : keys) {
+                    String time = item.optString(key, "");
+                    if (!time.matches("\\d{2}:\\d{2}")) { valid = false; break; }
+                    row.put(time);
+                }
+                if (valid) days.put(row);
+            }
+        }
+        int expected = Year.isLeap(year) ? 366 : 365;
+        if (days.length() < expected)
+            throw new java.io.IOException("Data tahun " + year + " tidak lengkap (" + days.length() + "/" + expected + " hari)");
+        normalized.put("days", days);
+        return normalized.toString();
     }
 
     private String request(String endpoint) throws Exception {

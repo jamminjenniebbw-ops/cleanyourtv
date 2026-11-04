@@ -1,6 +1,10 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -34,6 +38,10 @@ final class PrayerTimesPanel {
     private List<String> todayTimes = new ArrayList<>();
     private LocalDate loadedDate;
     private boolean enabled;
+    private boolean fetching;
+    private long lastFetchStartedAt;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
     /**
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
@@ -52,6 +60,7 @@ final class PrayerTimesPanel {
         root.addView(p.panel, lp);
         p.panel.setVisibility(enabled ? View.VISIBLE : View.GONE);
         if (enabled) {
+            p.registerNetworkCallback();
             p.load();
             p.handler.postDelayed(p.tick, 1_000L);
         }
@@ -197,83 +206,171 @@ final class PrayerTimesPanel {
     };
 
     private int fetchAttempt = 0;
+    private static final String API_BASE = "https://api.myquran.com/v3/sholat";
+    private static final String CITY_NAME = "KOTA BANDUNG";
+
+    private boolean hasValidatedInternet() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) activity.getSystemService(Activity.CONNECTIVITY_SERVICE);
+            Network active = cm == null ? null : cm.getActiveNetwork();
+            NetworkCapabilities caps = active == null ? null : cm.getNetworkCapabilities(active);
+            return caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        } catch (Exception ignored) { return false; }
+    }
+
+    private void registerNetworkCallback() {
+        try {
+            connectivityManager = (ConnectivityManager) activity.getSystemService(Activity.CONNECTIVITY_SERVICE);
+            if (connectivityManager == null || networkCallback != null) return;
+            networkCallback = new ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(Network network) {
+                    handler.postDelayed(() -> {
+                        if (enabled && hasValidatedInternet()) load();
+                    }, 1500L);
+                }
+                @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) {
+                    if (enabled && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                            && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                        handler.postDelayed(() -> {
+                            if (enabled && hasValidatedInternet()) load();
+                        }, 1500L);
+                    }
+                }
+            };
+            connectivityManager.registerNetworkCallback(
+                    new NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),
+                    networkCallback);
+        } catch (Exception ignored) { }
+    }
 
     private void load() {
+        if (!enabled) return;
         LocalDate d = LocalDate.now(ZONE);
-        String cached = activity.getSharedPreferences("prayer_times_panel", 0)
-                .getString("schedule_" + d.getYear(), "");
+        String cacheKey = "schedule_myquran_" + d.getYear();
+        String cached = activity.getSharedPreferences("prayer_times_panel", 0).getString(cacheKey, "");
         if (!cached.isEmpty()) parse(cached, d);
 
-        // Retry through the canonical host and its www alias. Some TV firmwares/networks
-        // fail the first DNS/TLS connection even while the rest of the launcher is online.
-        new Thread(() -> {
-            String target = "https://sajadah.org/api/v1/times/id/kota-bandung/" + d.getYear() + ".json";
-            String[] urls = {
-                    target,
-                    target.replace("https://sajadah.org", "https://www.sajadah.org"),
-                    "https://api.allorigins.win/raw?url=" + android.net.Uri.encode(target),
-                    "https://corsproxy.io/?url=" + android.net.Uri.encode(target)
-            };
-            StringBuilder failures = new StringBuilder();
-            for (String endpoint : urls) {
-                HttpURLConnection c = null;
-                try {
-                    URL url = new URL(endpoint);
-                    c = (HttpURLConnection) url.openConnection();
-                    c.setRequestMethod("GET");
-                    c.setConnectTimeout(18000);
-                    c.setReadTimeout(18000);
-                    c.setInstanceFollowRedirects(true);
-                    c.setRequestProperty("Accept", "application/json");
-                    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; CleanYourTV) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36");
-                    c.setRequestProperty("Connection", "close");
-                    int code = c.getResponseCode();
-                    if (code != HttpURLConnection.HTTP_OK)
-                        throw new java.io.IOException("HTTP " + code);
-                    StringBuilder b = new StringBuilder();
-                    try (BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) b.append(line);
-                    }
-                    String json = b.toString();
-                    // Validate the response before replacing a previously good cache.
-                    JSONObject check = new JSONObject(json);
-                    if (!check.has("fields") || !check.has("days"))
-                        throw new java.io.IOException("Format data jadwal tidak valid");
-                    activity.getSharedPreferences("prayer_times_panel", 0).edit()
-                            .putString("schedule_" + d.getYear(), json).apply();
-                    activity.runOnUiThread(() -> {
-                        fetchAttempt = 0;
-                        parse(json, LocalDate.now(ZONE));
-                    });
-                    return;
-                } catch (Exception e) {
-                    if (failures.length() > 0) failures.append(" | ");
-                    String host;
-                    try { host = new URL(endpoint).getHost(); }
-                    catch (Exception ignored) { host = "server"; }
-                    failures.append(host).append(": ")
-                            .append(e.getClass().getSimpleName());
-                    if (e.getMessage() != null && !e.getMessage().isEmpty())
-                        failures.append(" (").append(e.getMessage()).append(")");
-                } finally {
-                    if (c != null) c.disconnect();
-                }
-            }
+        if (!hasValidatedInternet()) {
+            if (todayTimes.isEmpty()) status.setText("Offline • menunggu jadwal tersimpan");
+            else status.setText("Jadwal tersimpan • offline");
+            return;
+        }
 
-            final String error = failures.length() == 0 ? "koneksi gagal" : failures.toString();
-            activity.runOnUiThread(() -> {
-                if (todayTimes.isEmpty()) status.setText("Jadwal gagal dimuat • " + error);
-                else status.setText("Jadwal tersimpan • menunggu koneksi");
-                updateNext();
-                // Retry periodically; do not leave the panel permanently blank after a temporary outage.
-                fetchAttempt++;
-                long delay = Math.min(15 * 60_000L, 30_000L * (1L << Math.min(fetchAttempt - 1, 4)));
-                handler.removeCallbacks(retryFetch);
-                handler.postDelayed(retryFetch, delay);
-            });
-        }, "PrayerTimesFetch").start();
+        long now = System.currentTimeMillis();
+        if (fetching || now - lastFetchStartedAt < 10_000L) return;
+        long lastSuccess = activity.getSharedPreferences("prayer_times_panel", 0)
+                .getLong("last_success_myquran_" + d.getYear(), 0L);
+        if (lastSuccess > 0L && now - lastSuccess < 24L * 60L * 60L * 1000L) {
+            if (!todayTimes.isEmpty()) status.setText("Jadwal tersimpan • diperbarui dari myQuran");
+            return;
+        }
+        fetching = true;
+        lastFetchStartedAt = now;
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                String cityJson = request(API_BASE + "/kabkota/cari/bandung");
+                JSONObject cityRoot = new JSONObject(cityJson);
+                if (!cityRoot.optBoolean("status")) throw new java.io.IOException("Pencarian Kota Bandung gagal");
+                JSONArray cities = cityRoot.optJSONArray("data");
+                String cityId = null;
+                if (cities != null) {
+                    for (int i = 0; i < cities.length(); i++) {
+                        JSONObject city = cities.optJSONObject(i);
+                        if (city != null && CITY_NAME.equalsIgnoreCase(city.optString("lokasi").trim())) {
+                            cityId = city.optString("id", "");
+                            break;
+                        }
+                    }
+                }
+                if (cityId == null || cityId.isEmpty()) throw new java.io.IOException("ID Kota Bandung tidak ditemukan");
+
+                JSONObject normalized = new JSONObject();
+                JSONArray fields = new JSONArray();
+                for (String field : new String[]{"date", "fajr", "dhuhr", "asr", "maghrib", "isha"}) fields.put(field);
+                normalized.put("fields", fields);
+                JSONArray days = new JSONArray();
+                for (int month = 1; month <= 12; month++) {
+                    String period = String.format(Locale.ROOT, "%04d-%02d", d.getYear(), month);
+                    JSONObject monthRoot = new JSONObject(request(API_BASE + "/jadwal/" + cityId + "/" + period));
+                    if (!monthRoot.optBoolean("status")) throw new java.io.IOException("Jadwal " + period + " tidak tersedia");
+                    JSONObject data = monthRoot.optJSONObject("data");
+                    JSONObject schedule = data == null ? null : data.optJSONObject("jadwal");
+                    if (schedule == null || schedule.length() < 27)
+                        throw new java.io.IOException("Format jadwal " + period + " tidak lengkap");
+                    Iterator<String> dates = schedule.keys();
+                    while (dates.hasNext()) {
+                        String dateKey = dates.next();
+                        JSONObject item = schedule.optJSONObject(dateKey);
+                        if (item == null) continue;
+                        String[] keys = {"subuh", "dzuhur", "ashar", "maghrib", "isya"};
+                        JSONArray row = new JSONArray();
+                        row.put(dateKey);
+                        boolean valid = true;
+                        for (String key : keys) {
+                            String time = item.optString(key, "");
+                            if (!time.matches("\\d{2}:\\d{2}")) { valid = false; break; }
+                            row.put(time);
+                        }
+                        if (valid) days.put(row);
+                    }
+                }
+                if (days.length() < (Year.isLeap(d.getYear()) ? 366 : 365))
+                    throw new java.io.IOException("Data tahunan tidak lengkap (" + days.length() + " hari)");
+                normalized.put("days", days);
+                String json = normalized.toString();
+                // Replace the last-good cache only after every month and every day's five times validate.
+                activity.getSharedPreferences("prayer_times_panel", 0).edit()
+                        .putString(cacheKey, json)
+                        .putLong("last_success_myquran_" + d.getYear(), System.currentTimeMillis())
+                        .apply();
+                activity.runOnUiThread(() -> {
+                    fetching = false;
+                    fetchAttempt = 0;
+                    parse(json, LocalDate.now(ZONE));
+                    status.setText("Jadwal diperbarui • myQuran (data Kemenag)");
+                });
+            } catch (Exception e) {
+                final String error = e.getClass().getSimpleName()
+                        + (e.getMessage() == null ? "" : " (" + e.getMessage() + ")");
+                activity.runOnUiThread(() -> {
+                    fetching = false;
+                    if (todayTimes.isEmpty()) status.setText("Jadwal gagal dimuat • " + error);
+                    else status.setText("Jadwal tersimpan • pembaruan gagal");
+                    updateNext();
+                    fetchAttempt++;
+                    long delay = Math.min(15 * 60_000L, 30_000L * (1L << Math.min(fetchAttempt - 1, 4)));
+                    handler.removeCallbacks(retryFetch);
+                    handler.postDelayed(retryFetch, delay);
+                });
+            }
+        }, "PrayerTimesMyQuranFetch").start();
+    }
+
+    private String request(String endpoint) throws Exception {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(endpoint).openConnection();
+            c.setRequestMethod("GET");
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(20000);
+            c.setInstanceFollowRedirects(true);
+            c.setRequestProperty("Accept", "application/json");
+            c.setRequestProperty("User-Agent", "CleanYourTV-PrayerEdition/1.0 (Android TV)");
+            c.setRequestProperty("Connection", "close");
+            int code = c.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) throw new java.io.IOException("HTTP " + code);
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) body.append(line);
+            }
+            return body.toString();
+        } finally {
+            if (c != null) c.disconnect();
+        }
     }
 
     private final Runnable retryFetch = this::load;

@@ -38,7 +38,9 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
     private TextView prayerTimesChoice;
+    private TextView scheduledWallpaperChoice;
     private boolean showPrayerTimes;
+    private boolean scheduledWallpaperEnabled;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -138,6 +140,14 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
+        scheduledWallpaperChoice = findViewById(R.id.scheduledWallpaperChoice);
+        scheduledWallpaperEnabled = choices.getBoolean("scheduled_wallpaper_enabled", false);
+        scheduledWallpaperChoice.setOnClickListener(v -> {
+            scheduledWallpaperEnabled = !scheduledWallpaperEnabled;
+            choices.edit().putBoolean("scheduled_wallpaper_enabled", scheduledWallpaperEnabled).apply();
+            changed();
+            refresh();
+        });
         openOnStartChoice = findViewById(R.id.openOnStartChoice);
         if (config.openOnStartChoice) {
             openOnStartChoice.setVisibility(View.VISIBLE);
@@ -148,7 +158,8 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
+                    .remove("scheduled_wallpaper_enabled").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -307,6 +318,8 @@ public final class LauncherSettingsActivity extends Activity {
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         prayerTimesChoice.setText(getString(R.string.prayer_times_state, getString(showPrayerTimes ? R.string.on : R.string.off)));
+        scheduledWallpaperChoice.setText(getString(R.string.scheduled_wallpaper_state,
+                getString(scheduledWallpaperEnabled ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -314,7 +327,8 @@ public final class LauncherSettingsActivity extends Activity {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times");
+                || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times")
+                || choices.contains("scheduled_wallpaper_enabled");
     }
 
     private void open(Intent intent) {

@@ -22,6 +22,9 @@ public class ThemeFilesTest {
         assertEquals("wallpapers/dusk.jpg", ThemeFiles.path(Arrays.asList("wallpapers", "dusk.jpg")));
         assertEquals("wallpapers/Night_2.WEBP", ThemeFiles.path(Arrays.asList("wallpapers", "Night_2.WEBP")));
         assertEquals("wallpapers/animated.GIF", ThemeFiles.path(Arrays.asList("wallpapers", "animated.GIF")));
+        assertEquals("wallpapers/loop.mp4", ThemeFiles.path(Arrays.asList("wallpapers", "loop.mp4")));
+        assertEquals("wallpapers/" + WallpaperSchedule.FILE_NAME,
+                ThemeFiles.path(Arrays.asList("wallpapers", WallpaperSchedule.FILE_NAME)));
     }
 
     @Test public void theCollectionsCaptionsAreAllowed() {

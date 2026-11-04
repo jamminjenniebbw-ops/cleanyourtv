@@ -25,14 +25,28 @@ final class WallpaperRotation {
         Arrays.sort(entries, Comparator.comparing(File::getName));
         for (File entry : entries) {
             String name = entry.getName().toLowerCase(Locale.ROOT);
-            if (entry.isFile() && entry.length() > 0 && entry.length() <= 10 * 1024 * 1024
+            boolean mp4 = isMp4(entry);
+            long limit = mp4 ? 20L * 1024 * 1024 : 10L * 1024 * 1024;
+            if (entry.isFile() && entry.length() > 0 && entry.length() <= limit
                     && (name.endsWith(".jpg") || name.endsWith(".jpeg")
-                    || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".gif"))) {
+                    || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".gif")
+                    || name.endsWith(".mp4"))) {
                 result.add(entry);
                 if (result.size() == 100) break;
             }
         }
         return result;
+    }
+
+    // The phone's backwards-compatible provider route writes MP4 bytes to wallpaper.jpg.
+    // Detect the actual container signature before applying the larger video size limit.
+    private static boolean isMp4(File file) {
+        if (file == null || !file.isFile() || file.length() < 12) return false;
+        try (java.io.RandomAccessFile input = new java.io.RandomAccessFile(file, "r")) {
+            input.seek(4);
+            return input.readByte() == 'f' && input.readByte() == 't'
+                    && input.readByte() == 'y' && input.readByte() == 'p';
+        } catch (Exception ignored) { return false; }
     }
 
     static File find(List<File> images, String name) {

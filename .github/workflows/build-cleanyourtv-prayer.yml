@@ -3,7 +3,7 @@ name: Build CleanYourTV with Prayer Times
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, fix/mp4-wallpaper-textureview ]
     paths:
       - "launcher/app/src/main/**"
       - "launcher/app/build.gradle"

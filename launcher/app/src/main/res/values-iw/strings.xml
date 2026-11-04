@@ -47,6 +47,7 @@
     <string name="launcher_settings">הגדרות מסך הבית</string>
     <string name="native_settings">הגדרות היצרן</string>
     <string name="columns_label">אפליקציות בשורה</string>
+    <string name="prayer_times_state">לוח זמני תפילה: %1$s</string>
     <string name="dock_opacity_label">עוצמת הרקע בשורת המועדפים</string>
     <string name="animations_state">הנפשות: %1$s</string>
     <string name="advanced_effects">אפקטים מתקדמים</string>

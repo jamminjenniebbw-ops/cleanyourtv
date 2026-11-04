@@ -8,10 +8,14 @@ import android.graphics.Canvas;
 import android.graphics.ImageDecoder;
 import android.graphics.drawable.AnimatedImageDrawable;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
-import android.widget.VideoView;
+import android.view.Surface;
+import android.view.TextureView;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -40,8 +44,17 @@ import java.util.concurrent.Executors;
 final class WallpaperPlayer {
     private final FrameLayout root;
     private final ImageView image;
-    private VideoView video;
+    private TextureView videoTexture;
+    private MediaPlayer videoPlayer;
+    private Surface videoSurface;
     private boolean videoPrepared;
+    private final Handler videoHandler = new Handler(Looper.getMainLooper());
+    private Runnable videoWatchdog;
+    private Runnable videoRetry;
+    private int videoRetryCount;
+    private int videoLastPosition = -1;
+    private int videoStallChecks;
+    private File videoFile;
     private final int backgroundColor;
     private final List<File> files;
     private final long interval;
@@ -158,20 +171,31 @@ final class WallpaperPlayer {
     void start() {
         active = true;
         startAnimation(currentAnimation);
-        if (video != null && videoPrepared) video.start();
+        if (videoPlayer != null && videoPrepared) {
+            try {
+                if (!videoPlayer.isPlaying()) videoPlayer.start();
+                if (videoTexture != null && videoFile != null) scheduleVideoWatchdog(videoTexture, videoFile);
+            } catch (Exception failure) {
+                if (videoTexture != null && videoFile != null)
+                    scheduleVideoRetry(videoTexture, videoFile, "resume failure");
+            }
+        } else if (videoTexture != null && videoFile != null && videoTexture.isAvailable()) {
+            prepareVideo(videoTexture, videoTexture.getSurfaceTexture(), videoFile);
+        }
         update();
     }
 
     void stop() {
         active = false;
+        cancelVideoWatchdog();
         stopAnimation(currentAnimation);
-        if (video != null && videoPrepared) video.pause();
+        if (videoPlayer != null && videoPrepared && videoPlayer.isPlaying()) videoPlayer.pause();
     }
 
     /** Drops the wallpaper texture when Home is hidden and Android asks the process to free memory. */
     void releaseForMemoryPressure() {
-        if (current == null && currentAnimation == null && video == null) return;
-        if (video != null) { video.stopPlayback(); video = null; videoPrepared = false; }
+        if (current == null && currentAnimation == null && videoTexture == null && videoPlayer == null) return;
+        releaseVideo();
         stopAnimation(currentAnimation);
         currentAnimation = null;
         image.setImageDrawable(null);
@@ -198,7 +222,7 @@ final class WallpaperPlayer {
         closed = true;
         stopAnimation(currentAnimation);
         currentAnimation = null;
-        if (video != null) { video.stopPlayback(); video = null; videoPrepared = false; }
+        releaseVideo();
         decoder.shutdownNow();
     }
 
@@ -320,35 +344,162 @@ final class WallpaperPlayer {
 
     private void showVideo(File file) {
         displayed = file.getName();
-        if (video != null) { video.stopPlayback(); root.removeView(video); }
-        stopAnimation(currentAnimation); currentAnimation = null;
+        releaseVideo();
+        stopAnimation(currentAnimation);
+        currentAnimation = null;
         if (current != null) { current.recycle(); current = null; }
         image.setImageDrawable(null);
         videoPrepared = false;
-        VideoView player = new VideoView(root.getContext());
-        video = player;
-        player.setFocusable(false);
-        player.setOnPreparedListener(mp -> {
-            if (video != player || closed) { player.stopPlayback(); return; }
-            mp.setVolume(0f, 0f);
-            mp.setLooping(true);
-            videoPrepared = true;
-            if (active) player.start();
-        });
-        player.setOnErrorListener((mp, what, extra) -> {
-            if (video == player) {
-                videoPrepared = false;
-                player.setVisibility(View.GONE);
-                root.setBackgroundColor(backgroundColor);
-                Log.w("TvHome.Wallpaper", "Unsupported or unreadable MP4 wallpaper: " + file.getName());
+        videoFile = file;
+
+        // TextureView participates in normal View z-order. SurfaceView/VideoView can be
+        // composited above the launcher window on some TV firmwares, hiding all Home UI.
+        TextureView texture = new TextureView(root.getContext());
+        texture.setFocusable(false);
+        videoTexture = texture;
+        texture.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+                prepareVideo(texture, surfaceTexture, file);
             }
-            return true;
+            @Override public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) { }
+            @Override public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+                if (videoTexture == texture) { cancelVideoTasks(); releaseVideoPlayerOnly(); }
+                return true;
+            }
+            @Override public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) { }
         });
-        root.addView(player, 0, new FrameLayout.LayoutParams(
+        root.addView(texture, 0, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        player.setVideoPath(file.getAbsolutePath());
         root.setBackground(null);
         image.setForeground(dimColor == 0 ? null : new ColorDrawable(dimColor));
+    }
+
+    private void prepareVideo(TextureView texture, SurfaceTexture surfaceTexture, File file) {
+        if (closed || videoTexture != texture) return;
+        try {
+            Surface surface = new Surface(surfaceTexture);
+            MediaPlayer player = new MediaPlayer();
+            videoSurface = surface;
+            videoPlayer = player;
+            player.setSurface(surface);
+            player.setDataSource(file.getAbsolutePath());
+            player.setVolume(0f, 0f);
+            player.setLooping(true);
+            player.setOnPreparedListener(mp -> {
+                if (videoPlayer != player || closed) { mp.release(); return; }
+                videoPrepared = true;
+                videoRetryCount = 0;
+                videoStallChecks = 0;
+                videoLastPosition = -1;
+                texture.setVisibility(View.VISIBLE);
+                if (active) mp.start();
+                Log.i("TvHome.Wallpaper", "MP4 wallpaper prepared: " + file.getName());
+                scheduleVideoWatchdog(texture, file);
+            });
+            player.setOnErrorListener((mp, what, extra) -> {
+                if (videoPlayer == player) {
+                    Log.e("TvHome.Wallpaper", "MP4 playback error for " + file.getName()
+                            + " (what=" + what + ", extra=" + extra + ")");
+                    scheduleVideoRetry(texture, file, "error " + what + "/" + extra);
+                }
+                return true;
+            });
+            player.setOnCompletionListener(mp -> {
+                if (videoPlayer == player) scheduleVideoRetry(texture, file, "unexpected completion");
+            });
+            player.prepareAsync();
+        } catch (Exception failure) {
+            Log.e("TvHome.Wallpaper", "Could not prepare MP4 wallpaper: " + file.getName(), failure);
+            scheduleVideoRetry(texture, file, "prepare exception");
+        }
+    }
+
+    // Some TV decoders silently stop advancing after long playback. Periodically check
+    // the playback clock and rebuild MediaPlayer if it stops or stalls.
+    private void scheduleVideoWatchdog(TextureView texture, File file) {
+        cancelVideoWatchdog();
+        videoWatchdog = new Runnable() {
+            @Override public void run() {
+                if (closed || videoTexture != texture || !active || !videoPrepared || videoPlayer == null) return;
+                try {
+                    MediaPlayer player = videoPlayer;
+                    if (!player.isPlaying()) {
+                        scheduleVideoRetry(texture, file, "watchdog: not playing");
+                        return;
+                    }
+                    int position = player.getCurrentPosition();
+                    if (position == videoLastPosition) videoStallChecks++;
+                    else videoStallChecks = 0;
+                    videoLastPosition = position;
+                    if (videoStallChecks >= 3) {
+                        scheduleVideoRetry(texture, file, "watchdog: playback position stalled");
+                        return;
+                    }
+                } catch (Exception failure) {
+                    scheduleVideoRetry(texture, file, "watchdog exception");
+                    return;
+                }
+                videoHandler.postDelayed(this, 30_000L);
+            }
+        };
+        videoHandler.postDelayed(videoWatchdog, 30_000L);
+    }
+
+    private void cancelVideoWatchdog() {
+        if (videoWatchdog != null) videoHandler.removeCallbacks(videoWatchdog);
+        videoWatchdog = null;
+    }
+
+    private void cancelVideoTasks() {
+        cancelVideoWatchdog();
+        if (videoRetry != null) videoHandler.removeCallbacks(videoRetry);
+        videoRetry = null;
+    }
+
+    private void scheduleVideoRetry(TextureView texture, File file, String reason) {
+        if (closed || videoTexture != texture) return;
+        cancelVideoWatchdog();
+        if (videoRetry != null) return;
+        videoPrepared = false;
+        texture.setVisibility(View.VISIBLE);
+        root.setBackgroundColor(backgroundColor);
+        releaseVideoPlayerOnly();
+        int attempt = ++videoRetryCount;
+        long delay = Math.min(30_000L, 2_000L * (1L << Math.min(attempt - 1, 4)));
+        Log.w("TvHome.Wallpaper", "Restarting MP4 wallpaper in " + delay
+                + "ms (attempt " + attempt + "): " + file.getName() + ", " + reason);
+        videoRetry = () -> {
+            videoRetry = null;
+            if (!closed && active && videoTexture == texture && texture.isAvailable()) {
+                prepareVideo(texture, texture.getSurfaceTexture(), file);
+            }
+        };
+        videoHandler.postDelayed(videoRetry, delay);
+    }
+
+    private void releaseVideoPlayerOnly() {
+        videoPrepared = false;
+        MediaPlayer player = videoPlayer;
+        videoPlayer = null;
+        if (player != null) {
+            try { player.setOnPreparedListener(null); player.setOnErrorListener(null); player.release(); }
+            catch (Exception ignored) { }
+        }
+        Surface surface = videoSurface;
+        videoSurface = null;
+        if (surface != null) surface.release();
+    }
+
+    private void releaseVideo() {
+        cancelVideoTasks();
+        videoRetryCount = 0;
+        videoStallChecks = 0;
+        videoLastPosition = -1;
+        videoFile = null;
+        TextureView texture = videoTexture;
+        videoTexture = null;
+        releaseVideoPlayerOnly();
+        if (texture != null && texture.getParent() == root) root.removeView(texture);
     }
 
     private static boolean isGif(File file) {

@@ -1,6 +1,10 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -32,12 +36,20 @@ final class PrayerTimesPanel {
     private final String[] names = {"Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"};
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
-    private LocalDate loadedDate;    /**
+    private LocalDate loadedDate;
+    private LocalDate lastLoadAttemptDate;
+    private boolean enabled;
+    private boolean fetching;
+    private long lastFetchStartedAt;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    /**
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
      */
-    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand) {
+    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean enabled) {
         PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand);
+        p.enabled = enabled;
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
         int panelWidth = Math.min((int)(650*d), (int)(screenWidth * .54f));
@@ -47,8 +59,12 @@ final class PrayerTimesPanel {
         // Align the panel's right edge with the header controls and dock's visual edge.
         lp.rightMargin = (int)(56*d);
         root.addView(p.panel, lp);
-        p.load();
-        p.handler.postDelayed(p.tick, 1_000L);
+        p.panel.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (enabled) {
+            p.registerNetworkCallback();
+            p.load();
+            p.handler.postDelayed(p.tick, 1_000L);
+        }
         return p;
     }
 
@@ -58,14 +74,19 @@ final class PrayerTimesPanel {
     }
 
     void hideForNavigation() {
-        panel.setVisibility(View.GONE);
+        if (enabled) panel.setVisibility(View.GONE);
     }
 
     void showAtHomeTop() {
-        panel.setVisibility(View.VISIBLE);
+        if (enabled) panel.setVisibility(View.VISIBLE);
     }
 
     void onGridScrolled(int verticalOffsetPx) {
+        // Scrolling must never override the user's master ON/OFF preference.
+        if (!enabled) {
+            panel.setVisibility(View.GONE);
+            return;
+        }
         // Visibility follows the actual Home scroll position, not the remote key event.
         // At the top (dock/first shelf) the panel is visible; once the app grid moves down,
         // hide it so it cannot cover the header or the rows below. Returning to offset 0 restores it.
@@ -179,37 +200,208 @@ final class PrayerTimesPanel {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             LocalDate d = LocalDate.now(ZONE);
-            if (loadedDate == null || !d.equals(loadedDate)) load();
+            if (!d.equals(loadedDate) && (lastLoadAttemptDate == null || !d.equals(lastLoadAttemptDate))) load();
             else updateNext();
             handler.postDelayed(this, 1_000L);
         }
     };
 
-    private void load() {
-        LocalDate d = LocalDate.now(ZONE);
-        String cached = activity.getSharedPreferences("prayer_times_panel", 0).getString("schedule_" + d.getYear(), "");
-        if (!cached.isEmpty()) parse(cached, d);
-        new Thread(() -> {
-            HttpURLConnection c = null;
-            try {
-                c = (HttpURLConnection)new URL("https://sajadah.org/api/v1/times/id/kota-bandung/" + d.getYear() + ".json").openConnection();
-                c.setConnectTimeout(8000); c.setReadTimeout(8000);
-                c.setRequestProperty("Accept", "application/json");
-                StringBuilder b = new StringBuilder();
-                try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line; while ((line = r.readLine()) != null) b.append(line);
-                }
-                String json = b.toString();
-                activity.getSharedPreferences("prayer_times_panel", 0).edit().putString("schedule_" + d.getYear(), json).apply();
-                activity.runOnUiThread(() -> parse(json, LocalDate.now(ZONE)));
-            } catch (Exception e) {
-                activity.runOnUiThread(() -> {
-                    if (todayTimes.isEmpty()) status.setText("Jadwal offline belum tersimpan");
-                    updateNext();
-                });
-            } finally { if (c != null) c.disconnect(); }
-        }, "PrayerTimesFetch").start();
+    private int fetchAttempt = 0;
+    private static final String API_BASE = "https://api.myquran.com/v3/sholat";
+    private static final String CITY_NAME = "KOTA BANDUNG";
+
+    private boolean hasValidatedInternet() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) activity.getSystemService(Activity.CONNECTIVITY_SERVICE);
+            Network active = cm == null ? null : cm.getActiveNetwork();
+            NetworkCapabilities caps = active == null ? null : cm.getNetworkCapabilities(active);
+            return caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        } catch (Exception ignored) { return false; }
     }
+
+    private void registerNetworkCallback() {
+        try {
+            connectivityManager = (ConnectivityManager) activity.getSystemService(Activity.CONNECTIVITY_SERVICE);
+            if (connectivityManager == null || networkCallback != null) return;
+            networkCallback = new ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(Network network) {
+                    handler.postDelayed(() -> {
+                        if (enabled && hasValidatedInternet()) load(true);
+                    }, 1500L);
+                }
+                @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) {
+                    if (enabled && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                            && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                        handler.postDelayed(() -> {
+                            if (enabled && hasValidatedInternet()) load(true);
+                        }, 1500L);
+                    }
+                }
+            };
+            connectivityManager.registerNetworkCallback(
+                    new NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),
+                    networkCallback);
+        } catch (Exception ignored) { }
+    }
+
+    private void load() { load(false); }
+
+    private void load(boolean forceRefresh) {
+        if (!enabled) return;
+        LocalDate d = LocalDate.now(ZONE);
+        lastLoadAttemptDate = d;
+        String cacheKey = "schedule_myquran_" + d.getYear();
+        android.content.SharedPreferences prefs = activity.getSharedPreferences("prayer_times_panel", 0);
+        String cached = prefs.getString(cacheKey, "");
+        boolean fromMyQuranCache = !cached.isEmpty();
+        // Migrate a previously downloaded schedule to keep existing offline installs usable.
+        if (cached.isEmpty()) cached = prefs.getString("schedule_" + d.getYear(), "");
+        if (!cached.isEmpty()) parse(cached, d);
+
+        if (!hasValidatedInternet()) {
+            if (todayTimes.isEmpty()) status.setText("Offline • menunggu jadwal tersimpan");
+            else status.setText(fromMyQuranCache
+                    ? "Offline • data Kementerian Agama Republik Indonesia tersimpan"
+                    : "Offline • jadwal lama tersimpan");
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (fetching || now - lastFetchStartedAt < 10_000L) return;
+        long lastSuccess = activity.getSharedPreferences("prayer_times_panel", 0)
+                .getLong("last_success_myquran_" + d.getYear(), 0L);
+        if (!forceRefresh && lastSuccess > 0L && now - lastSuccess < 24L * 60L * 60L * 1000L) {
+            if (!todayTimes.isEmpty()) status.setText("Sumber: Kementerian Agama Republik Indonesia • jadwal tersimpan");
+            return;
+        }
+        fetching = true;
+        lastFetchStartedAt = now;
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                String cityJson = request(API_BASE + "/kabkota/cari/bandung");
+                JSONObject cityRoot = new JSONObject(cityJson);
+                if (!cityRoot.optBoolean("status")) throw new java.io.IOException("Pencarian Kota Bandung gagal");
+                JSONArray cities = cityRoot.optJSONArray("data");
+                String cityId = null;
+                if (cities != null) {
+                    for (int i = 0; i < cities.length(); i++) {
+                        JSONObject city = cities.optJSONObject(i);
+                        if (city != null && CITY_NAME.equalsIgnoreCase(city.optString("lokasi").trim())) {
+                            cityId = city.optString("id", "");
+                            break;
+                        }
+                    }
+                }
+                if (cityId == null || cityId.isEmpty()) throw new java.io.IOException("ID Kota Bandung tidak ditemukan");
+
+                String json = fetchFullYear(cityId, d.getYear());
+                // Commit this year's fully validated schedule independently; next-year prefetch is best-effort.
+                prefs.edit().putString(cacheKey, json)
+                        .putLong("last_success_myquran_" + d.getYear(), System.currentTimeMillis()).apply();
+                // In the last quarter, pre-cache next year's schedule so New Year's Day also works offline.
+                if (d.getMonthValue() >= 10) {
+                    try {
+                        String nextYearJson = fetchFullYear(cityId, d.getYear() + 1);
+                        prefs.edit().putString("schedule_myquran_" + (d.getYear() + 1), nextYearJson)
+                                .putLong("last_success_myquran_" + (d.getYear() + 1), System.currentTimeMillis())
+                                .apply();
+                    } catch (Exception ignored) {
+                        // A not-yet-published next-year schedule must not invalidate this year's fresh cache.
+                    }
+                }
+                activity.runOnUiThread(() -> {
+                    fetching = false;
+                    fetchAttempt = 0;
+                    parse(json, LocalDate.now(ZONE));
+                    status.setText("Sumber: Kementerian Agama Republik Indonesia • jadwal diperbarui");
+                });
+            } catch (Exception e) {
+                final String error = e.getClass().getSimpleName()
+                        + (e.getMessage() == null ? "" : " (" + e.getMessage() + ")");
+                activity.runOnUiThread(() -> {
+                    fetching = false;
+                    if (todayTimes.isEmpty()) status.setText("Jadwal gagal dimuat • " + error);
+                    else status.setText("Jadwal tersimpan • pembaruan gagal • Kementerian Agama Republik Indonesia");
+                    updateNext();
+                    fetchAttempt++;
+                    long delay = Math.min(15 * 60_000L, 30_000L * (1L << Math.min(fetchAttempt - 1, 4)));
+                    handler.removeCallbacks(retryFetch);
+                    handler.postDelayed(retryFetch, delay);
+                });
+            }
+        }, "PrayerTimesMyQuranFetch").start();
+    }
+
+    private String fetchFullYear(String cityId, int year) throws Exception {
+        JSONObject normalized = new JSONObject();
+        JSONArray fields = new JSONArray();
+        for (String field : new String[]{"date", "fajr", "dhuhr", "asr", "maghrib", "isha"}) fields.put(field);
+        normalized.put("fields", fields);
+        JSONArray days = new JSONArray();
+        HashSet<String> seenDates = new HashSet<>();
+        for (int month = 1; month <= 12; month++) {
+            String period = String.format(Locale.ROOT, "%04d-%02d", year, month);
+            JSONObject monthRoot = new JSONObject(request(API_BASE + "/jadwal/" + cityId + "/" + period));
+            if (!monthRoot.optBoolean("status")) throw new java.io.IOException("Jadwal " + period + " tidak tersedia");
+            JSONObject data = monthRoot.optJSONObject("data");
+            JSONObject schedule = data == null ? null : data.optJSONObject("jadwal");
+            if (schedule == null || schedule.length() < 27)
+                throw new java.io.IOException("Format jadwal " + period + " tidak lengkap");
+            Iterator<String> dates = schedule.keys();
+            while (dates.hasNext()) {
+                String dateKey = dates.next();
+                JSONObject item = schedule.optJSONObject(dateKey);
+                if (item == null) continue;
+                try {
+                    if (LocalDate.parse(dateKey).getYear() != year || !seenDates.add(dateKey)) continue;
+                } catch (Exception invalidDate) { continue; }
+                String[] keys = {"subuh", "dzuhur", "ashar", "maghrib", "isya"};
+                JSONArray row = new JSONArray();
+                row.put(dateKey);
+                boolean valid = true;
+                for (String key : keys) {
+                    String time = item.optString(key, "");
+                    if (!time.matches("\\d{2}:\\d{2}")) { valid = false; break; }
+                    row.put(time);
+                }
+                if (valid) days.put(row);
+            }
+        }
+        int expected = Year.isLeap(year) ? 366 : 365;
+        if (days.length() != expected || seenDates.size() != expected)
+            throw new java.io.IOException("Data tahun " + year + " tidak lengkap (" + days.length() + "/" + expected + " hari)");
+        normalized.put("days", days);
+        return normalized.toString();
+    }
+
+    private String request(String endpoint) throws Exception {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(endpoint).openConnection();
+            c.setRequestMethod("GET");
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(20000);
+            c.setInstanceFollowRedirects(true);
+            c.setRequestProperty("Accept", "application/json");
+            c.setRequestProperty("User-Agent", "CleanYourTV-PrayerEdition/1.0 (Android TV)");
+            c.setRequestProperty("Connection", "close");
+            int code = c.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) throw new java.io.IOException("HTTP " + code);
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) body.append(line);
+            }
+            return body.toString();
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private final Runnable retryFetch = this::load;
 
     private void parse(String json, LocalDate date) {
         try {
@@ -226,7 +418,7 @@ final class PrayerTimesPanel {
                     todayTimes.add(t); values[p].setText(t);
                 }
                 loadedDate = date;
-                status.setText("Jadwal diperbarui • " + date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", new Locale("id","ID"))));
+                status.setText("Kementerian Agama Republik Indonesia • " + date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", new Locale("id","ID"))));
                 updateNext();
                 return;
             }

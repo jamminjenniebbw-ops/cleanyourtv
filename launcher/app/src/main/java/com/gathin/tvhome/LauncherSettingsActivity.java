@@ -37,6 +37,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
+    private TextView prayerTimesChoice;
+    private boolean showPrayerTimes;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -127,6 +129,14 @@ public final class LauncherSettingsActivity extends Activity {
                         .setNegativeButton(android.R.string.cancel, null)
                         .show();
             }
+        });
+        prayerTimesChoice = findViewById(R.id.prayerTimesChoice);
+        showPrayerTimes = choices.getBoolean("show_prayer_times", true);
+        prayerTimesChoice.setOnClickListener(v -> {
+            showPrayerTimes = !showPrayerTimes;
+            choices.edit().putBoolean("show_prayer_times", showPrayerTimes).apply();
+            changed();
+            refresh();
         });
         openOnStartChoice = findViewById(R.id.openOnStartChoice);
         if (config.openOnStartChoice) {
@@ -296,6 +306,7 @@ public final class LauncherSettingsActivity extends Activity {
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
+        prayerTimesChoice.setText(getString(R.string.prayer_times_state, getString(showPrayerTimes ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -303,7 +314,7 @@ public final class LauncherSettingsActivity extends Activity {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(OpenOnStart.KEY);
+                || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times");
     }
 
     private void open(Intent intent) {

@@ -255,16 +255,6 @@ import java.util.regex.Pattern'''
 )
 replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
-    '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg", "wallpaper.gif")
-
-    // The write:''',
-    '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")
-    private val SCHEDULE_IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\\\.(jpg|jpeg|png|webp|gif|mp4)", Pattern.CASE_INSENSITIVE)
-
-    // The write:'''
-)
-replace(
-    "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
     '''    fun isThemeFile(path: RemotePath): Boolean = path.dir == RemoteDir.OVERLAY && path.segments.size == 1 && path.segments[0] in FILES
 
     fun uri(path: RemotePath): String {
@@ -317,52 +307,4 @@ replace(
     }
 
     @Test fun aPushThroughTheProviderStagesThenWritesThenReadsBackAsTheLauncher() {'''
-)
-replace(
-    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
-    '''    override fun resetPlanSteps(route: FileRoute): List<Op> =''',
-    '''    replace(
-    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
-    "import tv.cleanyour.core.ops.ConfigTransportKind",
-    """import tv.cleanyour.core.ops.ConfigTransportKind
-import tv.cleanyour.core.ops.ThemeProviderLines"""
-)
-
-// Schedule transfer is deliberately separate from the legacy one-wallpaper plan. The manifest
-    // is pushed last, so the TV cannot activate a new schedule until every referenced asset arrived.
-    fun scheduledWallpaperPlanSteps(assets: List<Pair<String, BlobRef>>, route: FileRoute): List<Op> {
-        require(assets.size in 2..33) { "a schedule needs one manifest and 1 to 32 assets" }
-        val names = assets.map { it.first }
-        require(names.distinct().size == names.size) { "scheduled wallpaper filenames must be unique" }
-        require(names.count { it == "wallpaper_schedule.json" } == 1) { "exactly one wallpaper_schedule.json is required" }
-        var total = 0L
-        assets.forEach { (name, blob) ->
-            val path = RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", name))
-            require(ThemeProviderLines.isThemeFile(path)) { "unsupported scheduled wallpaper file: $name" }
-            val limit = if (name == "wallpaper_schedule.json") MAX_SCHEDULE_MANIFEST_BYTES else MAX_SCHEDULE_ASSET_BYTES
-            require(blob.size in 1..limit) { "$name must be 1 to $limit bytes" }
-            total = Math.addExact(total, blob.size)
-        }
-        require(total <= MAX_SCHEDULE_TOTAL_BYTES) { "scheduled wallpaper package exceeds $MAX_SCHEDULE_TOTAL_BYTES bytes" }
-        val pushes = assets.sortedBy { it.first == "wallpaper_schedule.json" }.map { (name, blob) ->
-            Op.PushAsset(blob, RemotePath(RemoteDir.OVERLAY, listOf("wallpapers", name)), blob.sha256, route)
-        }
-        return buildList {
-            add(Op.StartActivity(launcher, wait = true))
-            add(Op.Mkdir(RemoteDir.TMP))
-            if (route == FileRoute.SYNC) add(Op.Mkdir(RemoteDir.OVERLAY))
-            addAll(pushes)
-            add(Op.RestartHome(launcher))
-        }
-    }
-
-    override fun resetPlanSteps(route: FileRoute): List<Op> ='''
-)
-replace(
-    "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
-    '''        const val MAX_WALLPAPER_BYTES = 20_971_520L''',
-    '''        const val MAX_WALLPAPER_BYTES = 20_971_520L
-        const val MAX_SCHEDULE_MANIFEST_BYTES = 64L * 1024
-        const val MAX_SCHEDULE_ASSET_BYTES = 20L * 1024 * 1024
-        const val MAX_SCHEDULE_TOTAL_BYTES = 100L * 1024 * 1024'''
 )

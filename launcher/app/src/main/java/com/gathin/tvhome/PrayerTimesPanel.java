@@ -185,31 +185,74 @@ final class PrayerTimesPanel {
         }
     };
 
+    private int fetchAttempt = 0;
+
     private void load() {
         LocalDate d = LocalDate.now(ZONE);
-        String cached = activity.getSharedPreferences("prayer_times_panel", 0).getString("schedule_" + d.getYear(), "");
+        String cached = activity.getSharedPreferences("prayer_times_panel", 0)
+                .getString("schedule_" + d.getYear(), "");
         if (!cached.isEmpty()) parse(cached, d);
+
+        // Retry through the canonical host and its www alias. Some TV firmwares/networks
+        // fail the first DNS/TLS connection even while the rest of the launcher is online.
         new Thread(() -> {
-            HttpURLConnection c = null;
-            try {
-                c = (HttpURLConnection)new URL("https://sajadah.org/api/v1/times/id/kota-bandung/" + d.getYear() + ".json").openConnection();
-                c.setConnectTimeout(8000); c.setReadTimeout(8000);
-                c.setRequestProperty("Accept", "application/json");
-                StringBuilder b = new StringBuilder();
-                try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line; while ((line = r.readLine()) != null) b.append(line);
+            String[] hosts = {"https://sajadah.org", "https://www.sajadah.org"};
+            Exception lastError = null;
+            for (String host : hosts) {
+                HttpURLConnection c = null;
+                try {
+                    URL url = new URL(host + "/api/v1/times/id/kota-bandung/" + d.getYear() + ".json");
+                    c = (HttpURLConnection) url.openConnection();
+                    c.setRequestMethod("GET");
+                    c.setConnectTimeout(12000);
+                    c.setReadTimeout(12000);
+                    c.setInstanceFollowRedirects(true);
+                    c.setRequestProperty("Accept", "application/json");
+                    c.setRequestProperty("User-Agent", "CleanYourTV-PrayerEdition/1.0");
+                    int code = c.getResponseCode();
+                    if (code != HttpURLConnection.HTTP_OK)
+                        throw new java.io.IOException("HTTP " + code + " dari " + host);
+                    StringBuilder b = new StringBuilder();
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) b.append(line);
+                    }
+                    String json = b.toString();
+                    // Validate the response before replacing a previously good cache.
+                    JSONObject check = new JSONObject(json);
+                    if (!check.has("fields") || !check.has("days"))
+                        throw new java.io.IOException("Format data jadwal tidak valid");
+                    activity.getSharedPreferences("prayer_times_panel", 0).edit()
+                            .putString("schedule_" + d.getYear(), json).apply();
+                    activity.runOnUiThread(() -> {
+                        fetchAttempt = 0;
+                        parse(json, LocalDate.now(ZONE));
+                    });
+                    return;
+                } catch (Exception e) {
+                    lastError = e;
+                } finally {
+                    if (c != null) c.disconnect();
                 }
-                String json = b.toString();
-                activity.getSharedPreferences("prayer_times_panel", 0).edit().putString("schedule_" + d.getYear(), json).apply();
-                activity.runOnUiThread(() -> parse(json, LocalDate.now(ZONE)));
-            } catch (Exception e) {
-                activity.runOnUiThread(() -> {
-                    if (todayTimes.isEmpty()) status.setText("Jadwal offline belum tersimpan");
-                    updateNext();
-                });
-            } finally { if (c != null) c.disconnect(); }
+            }
+
+            final String error = lastError == null ? "koneksi gagal" :
+                    (lastError.getMessage() == null ? lastError.getClass().getSimpleName() : lastError.getMessage());
+            activity.runOnUiThread(() -> {
+                if (todayTimes.isEmpty()) status.setText("Jadwal gagal dimuat • " + error);
+                else status.setText("Jadwal tersimpan • menunggu koneksi");
+                updateNext();
+                // Retry periodically; do not leave the panel permanently blank after a temporary outage.
+                fetchAttempt++;
+                long delay = Math.min(15 * 60_000L, 30_000L * (1L << Math.min(fetchAttempt - 1, 4)));
+                handler.removeCallbacks(retryFetch);
+                handler.postDelayed(retryFetch, delay);
+            });
         }, "PrayerTimesFetch").start();
     }
+
+    private final Runnable retryFetch = this::load;
 
     private void parse(String json, LocalDate date) {
         try {

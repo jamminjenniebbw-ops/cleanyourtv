@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 final class ThemeFiles {
     static final String WALLPAPERS = "wallpapers";
     /** The names tools/theme.sh accepts for a collection image, and the types WallpaperRotation reads. */
-    private static final Pattern IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\.(jpg|jpeg|png|webp|gif)",
+    private static final Pattern IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\.(jpg|jpeg|png|webp|gif|mp4)",
             Pattern.CASE_INSENSITIVE);
 
     private ThemeFiles() {}
@@ -21,7 +21,8 @@ final class ThemeFiles {
                     || "wallpaper.mp4".equals(name) || "theme_revision".equals(name) ? name : null;
         }
         if (segments.size() == 2 && WALLPAPERS.equals(segments.get(0))
-                && (collectionImage(segments.get(1)) || WallpaperCaptions.FILE_NAME.equals(segments.get(1)))) {
+                && (collectionImage(segments.get(1)) || WallpaperCaptions.FILE_NAME.equals(segments.get(1))
+                || WallpaperSchedule.FILE_NAME.equals(segments.get(1)))) {
             return WALLPAPERS + "/" + segments.get(1);
         }
         return null;

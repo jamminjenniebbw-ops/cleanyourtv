@@ -49,6 +49,13 @@ final class WallpaperPlayer {
     private Surface videoSurface;
     private boolean videoPrepared;
     private final Handler videoHandler = new Handler(Looper.getMainLooper());
+    private final Runnable scheduleBoundary = new Runnable() {
+        @Override public void run() {
+            if (!active || closed || !scheduledMode) return;
+            update();
+            scheduleNextBoundary();
+        }
+    };
     private Runnable videoWatchdog;
     private Runnable videoRetry;
     private int videoRetryCount;
@@ -196,6 +203,7 @@ final class WallpaperPlayer {
 
     void start() {
         active = true;
+        if (scheduledMode) scheduleNextBoundary();
         startAnimation(currentAnimation);
         if (videoPlayer != null && videoPrepared) {
             try {
@@ -213,6 +221,7 @@ final class WallpaperPlayer {
 
     void stop() {
         active = false;
+        videoHandler.removeCallbacks(scheduleBoundary);
         cancelVideoWatchdog();
         stopAnimation(currentAnimation);
         if (videoPlayer != null && videoPrepared && videoPlayer.isPlaying()) videoPlayer.pause();
@@ -264,6 +273,18 @@ final class WallpaperPlayer {
         currentAnimation = null;
         releaseVideo();
         decoder.shutdownNow();
+    }
+
+    void onTimeChanged() {
+        update();
+        if (scheduledMode && active) scheduleNextBoundary();
+    }
+
+    private void scheduleNextBoundary() {
+        videoHandler.removeCallbacks(scheduleBoundary);
+        if (!active || closed || !scheduledMode) return;
+        long remainder = System.currentTimeMillis() % 60_000L;
+        videoHandler.postDelayed(scheduleBoundary, 60_000L - remainder + 25L);
     }
 
     void update() {

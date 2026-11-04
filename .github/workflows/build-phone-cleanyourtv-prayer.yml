@@ -11,6 +11,7 @@ on:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"
       - "scripts/patch-phone-gif.py"
+      - "scripts/patch-phone-gif.py"
   pull_request:
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"

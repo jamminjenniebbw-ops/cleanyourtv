@@ -36,7 +36,7 @@ final class PrayerTimesPanel {
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
      */
-    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand) {
+    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean enabled) {
         PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand);
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
@@ -47,8 +47,11 @@ final class PrayerTimesPanel {
         // Align the panel's right edge with the header controls and dock's visual edge.
         lp.rightMargin = (int)(56*d);
         root.addView(p.panel, lp);
-        p.load();
-        p.handler.postDelayed(p.tick, 1_000L);
+        p.panel.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (enabled) {
+            p.load();
+            p.handler.postDelayed(p.tick, 1_000L);
+        }
         return p;
     }
 
@@ -196,22 +199,29 @@ final class PrayerTimesPanel {
         // Retry through the canonical host and its www alias. Some TV firmwares/networks
         // fail the first DNS/TLS connection even while the rest of the launcher is online.
         new Thread(() -> {
-            String[] hosts = {"https://sajadah.org", "https://www.sajadah.org"};
+            String target = "https://sajadah.org/api/v1/times/id/kota-bandung/" + d.getYear() + ".json";
+            String[] urls = {
+                    target,
+                    target.replace("https://sajadah.org", "https://www.sajadah.org"),
+                    "https://api.allorigins.win/raw?url=" + java.net.URLEncoder.encode(target, "UTF-8"),
+                    "https://corsproxy.io/?url=" + java.net.URLEncoder.encode(target, "UTF-8")
+            };
             Exception lastError = null;
-            for (String host : hosts) {
+            for (String endpoint : urls) {
                 HttpURLConnection c = null;
                 try {
-                    URL url = new URL(host + "/api/v1/times/id/kota-bandung/" + d.getYear() + ".json");
+                    URL url = new URL(endpoint);
                     c = (HttpURLConnection) url.openConnection();
                     c.setRequestMethod("GET");
-                    c.setConnectTimeout(12000);
-                    c.setReadTimeout(12000);
+                    c.setConnectTimeout(18000);
+                    c.setReadTimeout(18000);
                     c.setInstanceFollowRedirects(true);
                     c.setRequestProperty("Accept", "application/json");
-                    c.setRequestProperty("User-Agent", "CleanYourTV-PrayerEdition/1.0");
+                    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; CleanYourTV) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36");
+                    c.setRequestProperty("Connection", "close");
                     int code = c.getResponseCode();
                     if (code != HttpURLConnection.HTTP_OK)
-                        throw new java.io.IOException("HTTP " + code + " dari " + host);
+                        throw new java.io.IOException("HTTP " + code);
                     StringBuilder b = new StringBuilder();
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {

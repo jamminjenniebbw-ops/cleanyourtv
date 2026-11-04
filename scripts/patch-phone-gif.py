@@ -255,7 +255,7 @@ import java.util.regex.Pattern'''
 )
 replace(
     "core/ops/src/main/kotlin/tv/cleanyour/core/ops/ThemeProviderLines.kt",
-    '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")
+    '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg", "wallpaper.gif")
 
     // The write:''',
     '''    val FILES: Set<String> = setOf("config.json", "wallpaper.jpg")

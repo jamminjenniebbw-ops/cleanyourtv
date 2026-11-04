@@ -22,6 +22,9 @@ public class ThemeFilesTest {
         assertEquals("wallpapers/dusk.jpg", ThemeFiles.path(Arrays.asList("wallpapers", "dusk.jpg")));
         assertEquals("wallpapers/Night_2.WEBP", ThemeFiles.path(Arrays.asList("wallpapers", "Night_2.WEBP")));
         assertEquals("wallpapers/animated.GIF", ThemeFiles.path(Arrays.asList("wallpapers", "animated.GIF")));
+        assertEquals("wallpapers/loop.mp4", ThemeFiles.path(Arrays.asList("wallpapers", "loop.mp4")));
+        assertEquals("wallpapers/" + WallpaperSchedule.FILE_NAME,
+                ThemeFiles.path(Arrays.asList("wallpapers", WallpaperSchedule.FILE_NAME)));
     }
 
     @Test public void theCollectionsCaptionsAreAllowed() {
@@ -44,6 +47,14 @@ public class ThemeFilesTest {
         assertNull(ThemeFiles.path(Arrays.asList("wallpapers", ".jpg")));
         assertNull(ThemeFiles.path(Arrays.asList("other", "dusk.jpg")));
         assertNull(ThemeFiles.path(Arrays.asList("wallpapers", "sub", "dusk.jpg")));
+    }
+
+    @Test public void clearingTheCollectionAlsoRemovesItsScheduleManifest() {
+        assertTrue(ThemeFiles.collectionFile("dusk.jpg"));
+        assertTrue(ThemeFiles.collectionFile("loop.mp4"));
+        assertTrue(ThemeFiles.collectionFile(WallpaperSchedule.FILE_NAME));
+        assertFalse(ThemeFiles.collectionFile("captions.txt"));
+        assertFalse(ThemeFiles.collectionFile("notes.json"));
     }
 
     @Test public void onlyTheBareFolderIsTheCollection() {

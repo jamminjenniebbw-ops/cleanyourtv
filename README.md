@@ -575,6 +575,7 @@ The **TV** needs Android 8.0 (API 26) or newer: `minSdk` is a compile-time floor
 |---|---|
 | **Configure** | Dock order, hidden apps, Live TV app, 4 to 7 tiles per row, reduced motion. All in [`config.xml`](launcher/app/src/main/res/values/config.xml) |
 | **Settings on the TV** | Hold OK on Settings for launcher settings. Optional `launcher_settings_button` makes a normal click open them directly; TV settings remain on the settings page and their app tile. |
+| **Scheduled background** | Optional time-based wallpaper mode; configure the JPG, GIF or MP4 files and time slots in the CleanYourTV phone app, then enable it in TV launcher settings. |
 | **Themes** | Background, wallpaper and layout from a `config.json` pushed over Wi-Fi, no rebuild. ten ship in [`themes/`](themes/), the built-in `default/` included |
 | **28 languages** | Follows the TV's language, with a fully mirrored right-to-left layout for Hebrew |
 | **App library** | Optional: browse every installed app and add or remove Home shortcuts. See [the app library guide](docs/app-library.md) |
@@ -618,6 +619,9 @@ and a wallpaper.
     dock band; **Dock band opacity** 100%, 70%, 50% or 30%. The last two only do anything while the dock is
     its own row (`dock_row`, on by default).
   - **Prayer schedule**: shows or hides the prayer-times panel on Home; it uses the published timetable for the selected city when available.
+  - **Scheduled background**: turns time-based wallpaper selection on or off. The schedule and its JPG, GIF
+    or MP4 files are prepared in the CleanYourTV phone app; when off, the existing single-wallpaper behaviour
+    remains active.
   - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
     default**. A pick holds that picture and stops the rotation until you choose Theme default, press
     Follow theme, or push the theme again.

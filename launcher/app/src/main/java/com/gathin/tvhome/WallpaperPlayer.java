@@ -49,6 +49,13 @@ final class WallpaperPlayer {
     private Surface videoSurface;
     private boolean videoPrepared;
     private final Handler videoHandler = new Handler(Looper.getMainLooper());
+    private final Runnable scheduleBoundary = new Runnable() {
+        @Override public void run() {
+            if (!active || closed || !scheduledMode) return;
+            update();
+            scheduleNextBoundary();
+        }
+    };
     private Runnable videoWatchdog;
     private Runnable videoRetry;
     private int videoRetryCount;
@@ -57,6 +64,11 @@ final class WallpaperPlayer {
     private File videoFile;
     private final int backgroundColor;
     private final List<File> files;
+    private final List<File> scheduledFiles;
+    private final boolean scheduledMode;
+    private final File scheduleDirectory;
+    private WallpaperSchedule schedule;
+    private long scheduleModified = Long.MIN_VALUE;
     private final long interval;
     private final String order;
     private final SharedPreferences preferences;
@@ -75,6 +87,7 @@ final class WallpaperPlayer {
     private boolean closed;
     private boolean loading;
     private String displayed = "";
+    private String displayedPath = "";
     /** wallpaper_captions: the shown picture's name from wallpapers/captions.txt; null when off or there are none. */
     private final TextView caption;
     private final Map<String, String> names;
@@ -89,6 +102,12 @@ final class WallpaperPlayer {
         this.root = root;
         backgroundColor = config.backgroundColor;
         files = new ArrayList<>(config.wallpapers);
+        scheduledMode = context.getSharedPreferences(Config.SETTINGS_NAME, Context.MODE_PRIVATE)
+                .getBoolean("scheduled_wallpaper_enabled", false);
+        File themeDirectory = Config.dir(context);
+        scheduleDirectory = themeDirectory == null ? null : new File(themeDirectory, "wallpapers");
+        scheduledFiles = scheduledMode
+                ? new ArrayList<>(WallpaperRotation.images(scheduleDirectory)) : new ArrayList<>();
         interval = config.wallpaperRotationMinutes * 60_000L;
         bitmapConfig = config.wallpaperTrueColor ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
         // The dim is painted into the picture (decode), so no full-screen shade layer is drawn on every frame.
@@ -114,7 +133,7 @@ final class WallpaperPlayer {
         names = config.wallpaperCaptions && config.wallpaperEnabled && !files.isEmpty()
                 ? WallpaperCaptions.read(files.get(0).getParentFile()) : Collections.emptyMap();
         caption = names.isEmpty() ? null : makeCaption(context, root);
-        if (config.wallpaperEnabled && !files.isEmpty()) {
+        if ((config.wallpaperEnabled && !files.isEmpty()) || !scheduledFiles.isEmpty()) {
             root.addView(image, 0, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             showFirst();
@@ -128,9 +147,13 @@ final class WallpaperPlayer {
      */
     private void showFirst() {
         String previous = preferences.getString("image", "");
-        List<File> playable = playable();
-        File first = WallpaperRotation.find(playable, previous);
-        if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
+        File first = scheduledWallpaper();
+        boolean fromSchedule = first != null;
+        if (!fromSchedule) {
+            List<File> playable = playable();
+            first = WallpaperRotation.find(playable, previous);
+            if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
+        }
         while (first != null) {
             if (isMp4(first)) {
                 showVideo(first);
@@ -141,8 +164,9 @@ final class WallpaperPlayer {
                 if (gif != null) {
                     show(gif);
                     displayed = first.getName();
+                    displayedPath = first.getAbsolutePath();
                     showCaption(false);
-                    if (!displayed.equals(previous)) {
+                    if (!fromSchedule && !displayed.equals(previous)) {
                         preferences.edit().putString("image", displayed)
                                 .putLong("changed", System.currentTimeMillis()).apply();
                     }
@@ -154,22 +178,32 @@ final class WallpaperPlayer {
                     show(bitmap);
                     root.setBackground(null);
                     displayed = first.getName();
+                    displayedPath = first.getAbsolutePath();
                     showCaption(false);
-                    if (!displayed.equals(previous)) {
+                    if (!fromSchedule && !displayed.equals(previous)) {
                         preferences.edit().putString("image", displayed)
                                 .putLong("changed", System.currentTimeMillis()).apply();
                     }
                     return;
                 }
             }
-            files.remove(first);   // unreadable or over 4K: try another, or keep the plain colour
-            playable = playable();
-            first = WallpaperRotation.pick(playable, previous, order, random);
+            if (fromSchedule) {
+                scheduledFiles.remove(first);
+                fromSchedule = false;
+                List<File> playable = playable();
+                first = WallpaperRotation.find(playable, previous);
+                if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
+            } else {
+                files.remove(first);
+                List<File> playable = playable();
+                first = WallpaperRotation.pick(playable, previous, order, random);
+            }
         }
     }
 
     void start() {
         active = true;
+        if (scheduledMode) scheduleNextBoundary();
         startAnimation(currentAnimation);
         if (videoPlayer != null && videoPrepared) {
             try {
@@ -187,6 +221,7 @@ final class WallpaperPlayer {
 
     void stop() {
         active = false;
+        videoHandler.removeCallbacks(scheduleBoundary);
         cancelVideoWatchdog();
         stopAnimation(currentAnimation);
         if (videoPlayer != null && videoPrepared && videoPlayer.isPlaying()) videoPlayer.pause();
@@ -203,10 +238,24 @@ final class WallpaperPlayer {
         // let Android reclaim its native buffer after rendering releases it instead of recycling it mid-frame.
         current = null;
         displayed = "";
+        displayedPath = "";
         root.setBackgroundColor(backgroundColor);
     }
 
     /** The pictures the rotation picks from now: wallpaper_moods' group for the time of day, or the whole collection. */
+    private File scheduledWallpaper() {
+        if (!scheduledMode || scheduleDirectory == null) return null;
+        File manifest = new File(scheduleDirectory, WallpaperSchedule.FILE_NAME);
+        long modified = manifest.isFile() ? manifest.lastModified() : -1L;
+        if (schedule == null || modified != scheduleModified) {
+            schedule = WallpaperSchedule.load(scheduleDirectory);
+            scheduleModified = modified;
+        }
+        java.time.LocalTime now = java.time.LocalTime.now();
+        File selected = schedule.at(now.getHour() * 60 + now.getMinute());
+        return selected != null && scheduledFiles.contains(selected) ? selected : null;
+    }
+
     private List<File> playable() {
         if (moods.isEmpty()) return files;
         LocalDateTime now = LocalDateTime.now();
@@ -220,24 +269,43 @@ final class WallpaperPlayer {
     void close() {
         active = false;
         closed = true;
+        videoHandler.removeCallbacks(scheduleBoundary);
         stopAnimation(currentAnimation);
         currentAnimation = null;
         releaseVideo();
         decoder.shutdownNow();
     }
 
+    void onTimeChanged() {
+        update();
+        if (scheduledMode && active) scheduleNextBoundary();
+    }
+
+    private void scheduleNextBoundary() {
+        videoHandler.removeCallbacks(scheduleBoundary);
+        if (!active || closed || !scheduledMode) return;
+        long remainder = System.currentTimeMillis() % 60_000L;
+        videoHandler.postDelayed(scheduleBoundary, 60_000L - remainder + 25L);
+    }
+
     void update() {
-        if (!active || closed || loading || files.isEmpty()) return;
+        if (!active || closed || loading || (files.isEmpty() && scheduledFiles.isEmpty())) return;
         String previous = preferences.getString("image", "");
-        // A picture outside the time of day's group (the group changed) is replaced at once, not after the interval.
-        List<File> playable = playable();
-        File selected = WallpaperRotation.find(playable, previous);
+        File scheduled = scheduledWallpaper();
+        boolean fromSchedule = scheduled != null;
+        File selected = scheduled;
         long changed = preferences.getLong("changed", 0);
-        if (selected == null || WallpaperRotation.due(changed, System.currentTimeMillis(), interval)) {
-            selected = WallpaperRotation.pick(playable, previous, order, random);
+        if (!fromSchedule) {
+            // A picture outside the time of day's group (the group changed) is replaced at once, not after the interval.
+            List<File> playable = playable();
+            selected = WallpaperRotation.find(playable, previous);
+            if (selected == null || WallpaperRotation.due(changed, System.currentTimeMillis(), interval)) {
+                selected = WallpaperRotation.pick(playable, previous, order, random);
+            }
         }
-        if (selected == null || selected.getName().equals(displayed)) return;
+        if (selected == null || selected.getAbsolutePath().equals(displayedPath)) return;
         File next = selected;
+        final boolean scheduledSelection = fromSchedule;
         loading = true;
         decoder.execute(() -> {
             Bitmap bitmap = (isGif(next) || isMp4(next)) ? null : decode(next);
@@ -251,15 +319,16 @@ final class WallpaperPlayer {
                 }
                 if (isMp4(next)) { showVideo(next); displayed = next.getName(); return; }
                 if (bitmap == null && gif == null) {
-                    files.remove(next);
+                    if (scheduledSelection) scheduledFiles.remove(next); else files.remove(next);
                     Log.w("TvHome.Wallpaper", "Skipping unreadable image: " + next.getName());
                     update();
                     return;
                 }
                 if (gif != null) show(gif); else show(bitmap);
                 displayed = next.getName();
+                displayedPath = next.getAbsolutePath();
                 showCaption(true);
-                if (!displayed.equals(previous) || changed == 0) {
+                if (!scheduledSelection && (!displayed.equals(previous) || changed == 0)) {
                     preferences.edit().putString("image", displayed)
                             .putLong("changed", System.currentTimeMillis()).apply();
                 }
@@ -344,6 +413,7 @@ final class WallpaperPlayer {
 
     private void showVideo(File file) {
         displayed = file.getName();
+        displayedPath = file.getAbsolutePath();
         releaseVideo();
         stopAnimation(currentAnimation);
         currentAnimation = null;

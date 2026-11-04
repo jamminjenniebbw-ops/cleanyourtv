@@ -1,12 +1,12 @@
 name: Build CleanYourTV phone app with Prayer Edition
 
-# GIF wallpaper pass-through is validated at a maximum of 1,000,000 bytes.
-# Keep this workflow path in push/PR filters so build verification can be retriggered.
+# Phone media and scheduled-wallpaper patches are applied to the pinned upstream app.
+# Keep the patch script in push/PR filters so every patch change is build-verified.
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main, "prayer-edition/**" ]
+    branches: [ main, "prayer-edition/**", feature/scheduled-wallpaper-mode ]
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"
@@ -47,7 +47,7 @@ jobs:
           git clone --recurse-submodules --branch v0.4.7 https://github.com/udhaykumarbala/cleanyourtv-app.git phone
           echo "LAUNCHER_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Preserve selected GIF files in the phone app
+      - name: Patch phone media and scheduled-wallpaper support
         run: python3 scripts/patch-phone-gif.py
 
       - name: Build modified CleanYourTV launcher

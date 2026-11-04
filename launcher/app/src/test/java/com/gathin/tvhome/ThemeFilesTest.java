@@ -49,6 +49,14 @@ public class ThemeFilesTest {
         assertNull(ThemeFiles.path(Arrays.asList("wallpapers", "sub", "dusk.jpg")));
     }
 
+    @Test public void clearingTheCollectionAlsoRemovesItsScheduleManifest() {
+        assertTrue(ThemeFiles.collectionFile("dusk.jpg"));
+        assertTrue(ThemeFiles.collectionFile("loop.mp4"));
+        assertTrue(ThemeFiles.collectionFile(WallpaperSchedule.FILE_NAME));
+        assertFalse(ThemeFiles.collectionFile("captions.txt"));
+        assertFalse(ThemeFiles.collectionFile("notes.json"));
+    }
+
     @Test public void onlyTheBareFolderIsTheCollection() {
         assertTrue(ThemeFiles.isCollection(Collections.singletonList("wallpapers")));
         assertFalse(ThemeFiles.isCollection(Arrays.asList("wallpapers", "dusk.jpg")));

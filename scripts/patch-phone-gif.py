@@ -360,8 +360,8 @@ import tv.cleanyour.core.ops.ThemeProviderLines"""
 )
 replace(
     "core/engine/src/main/kotlin/tv/cleanyour/core/engine/FileOverlayTransport.kt",
-    '''        const val MAX_WALLPAPER_BYTES = 300L * 1024''',
-    '''        const val MAX_WALLPAPER_BYTES = 300L * 1024
+    '''        const val MAX_WALLPAPER_BYTES = 20_971_520L''',
+    '''        const val MAX_WALLPAPER_BYTES = 20_971_520L
         const val MAX_SCHEDULE_MANIFEST_BYTES = 64L * 1024
         const val MAX_SCHEDULE_ASSET_BYTES = 20L * 1024 * 1024
         const val MAX_SCHEDULE_TOTAL_BYTES = 100L * 1024 * 1024'''

@@ -214,7 +214,7 @@ final class PrayerTimesPanel {
                     "https://api.allorigins.win/raw?url=" + android.net.Uri.encode(target),
                     "https://corsproxy.io/?url=" + android.net.Uri.encode(target)
             };
-            Exception lastError = null;
+            StringBuilder failures = new StringBuilder();
             for (String endpoint : urls) {
                 HttpURLConnection c = null;
                 try {
@@ -249,14 +249,20 @@ final class PrayerTimesPanel {
                     });
                     return;
                 } catch (Exception e) {
-                    lastError = e;
+                    if (failures.length() > 0) failures.append(" | ");
+                    String host;
+                    try { host = new URL(endpoint).getHost(); }
+                    catch (Exception ignored) { host = "server"; }
+                    failures.append(host).append(": ")
+                            .append(e.getClass().getSimpleName());
+                    if (e.getMessage() != null && !e.getMessage().isEmpty())
+                        failures.append(" (").append(e.getMessage()).append(")");
                 } finally {
                     if (c != null) c.disconnect();
                 }
             }
 
-            final String error = lastError == null ? "koneksi gagal" :
-                    (lastError.getMessage() == null ? lastError.getClass().getSimpleName() : lastError.getMessage());
+            final String error = failures.length() == 0 ? "koneksi gagal" : failures.toString();
             activity.runOnUiThread(() -> {
                 if (todayTimes.isEmpty()) status.setText("Jadwal gagal dimuat • " + error);
                 else status.setText("Jadwal tersimpan • menunggu koneksi");

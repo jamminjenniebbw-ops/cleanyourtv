@@ -212,8 +212,7 @@ public final class LauncherSettingsActivity extends Activity {
         if (requestCode != REQUEST_TV_WALLPAPER || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         String mime = getContentResolver().getType(uri);
-        String ext = "video/mp4".equals(mime) ? "mp4" : "image/gif".equals(mime) ? "gif"
-                : ("image/jpeg".equals(mime) || "image/png".equals(mime)) ? "jpg" : null;
+        String ext = wallpaperExtension(uri, mime);
         if (ext == null) {
             Toast.makeText(this, R.string.wallpaper_unsupported, Toast.LENGTH_LONG).show();
             return;
@@ -224,6 +223,7 @@ public final class LauncherSettingsActivity extends Activity {
             return;
         }
         File temp = new File(dir, "wallpaper.importing"), target = new File(dir, "wallpaper." + ext);
+        File backup = new File(dir, "wallpaper.previous");
         try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream out = new FileOutputStream(temp)) {
             if (in == null) throw new java.io.IOException("No stream");
             byte[] buffer = new byte[32768]; int n; long total = 0;
@@ -234,19 +234,45 @@ public final class LauncherSettingsActivity extends Activity {
             }
             out.getFD().sync();
             if (total == 0) throw new java.io.IOException("Empty wallpaper");
-            if (target.exists() && !target.delete()) throw new java.io.IOException("Cannot replace old wallpaper");
-            if (!temp.renameTo(target)) throw new java.io.IOException("Save failed");
-            for (String other : new String[]{"jpg", "gif", "mp4"}) {
+            if (backup.exists() && !backup.delete()) throw new java.io.IOException("Cannot clear backup");
+            if (target.exists() && !target.renameTo(backup)) throw new java.io.IOException("Cannot stage old wallpaper");
+            if (!temp.renameTo(target)) {
+                if (backup.exists()) backup.renameTo(target);
+                throw new java.io.IOException("Save failed");
+            }
+            backup.delete();
+            for (String other : new String[]{"jpg", "jpeg", "png", "gif", "mp4"}) {
                 File f = new File(dir, "wallpaper." + other);
-                if (!f.equals(target)) f.delete();
+                if (!f.equals(target) && f.exists()) f.delete();
             }
             choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
             changed();
             Toast.makeText(this, R.string.wallpaper_imported, Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             temp.delete();
+            if (backup.exists() && !target.exists()) backup.renameTo(target);
             Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
         }
+    }
+
+    /** Some TV document providers report application/octet-stream; use the visible filename as fallback. */
+    private String wallpaperExtension(Uri uri, String mime) {
+        if ("video/mp4".equalsIgnoreCase(mime)) return "mp4";
+        if ("image/gif".equalsIgnoreCase(mime)) return "gif";
+        if ("image/png".equalsIgnoreCase(mime)) return "png";
+        if ("image/jpeg".equalsIgnoreCase(mime) || "image/jpg".equalsIgnoreCase(mime)) return "jpg";
+        String name = null;
+        try (android.database.Cursor cursor = getContentResolver().query(uri,
+                new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) name = cursor.getString(0);
+        } catch (Exception ignored) { }
+        if (name == null) return null;
+        name = name.toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".mp4")) return "mp4";
+        if (name.endsWith(".gif")) return "gif";
+        if (name.endsWith(".png")) return "png";
+        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "jpg";
+        return null;
     }
 
     private void showWallpaperPicker() {

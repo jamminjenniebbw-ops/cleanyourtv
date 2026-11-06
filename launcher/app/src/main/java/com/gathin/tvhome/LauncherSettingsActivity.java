@@ -240,7 +240,7 @@ public final class LauncherSettingsActivity extends Activity {
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle(R.string.tv_storage_wallpaper)
+                .setTitle(R.string.wallpaper_from_tv)
                 .setItems(labels.toArray(new String[0]), (dialog, which) -> importTvWallpaper(uris.get(which)))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();

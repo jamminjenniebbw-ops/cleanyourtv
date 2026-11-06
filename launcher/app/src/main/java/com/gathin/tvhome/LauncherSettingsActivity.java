@@ -204,16 +204,64 @@ public final class LauncherSettingsActivity extends Activity {
         pick.setType("*/*");
         pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
         pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        try { startActivityForResult(pick, REQUEST_TV_WALLPAPER); }
-        catch (ActivityNotFoundException | SecurityException e) {
-            Toast.makeText(this, R.string.wallpaper_picker_unavailable, Toast.LENGTH_LONG).show();
+        try {
+            if (pick.resolveActivity(getPackageManager()) != null) startActivityForResult(pick, REQUEST_TV_WALLPAPER);
+            else showIndexedMediaPicker();
+        } catch (ActivityNotFoundException | SecurityException e) {
+            showIndexedMediaPicker();
         }
+    }
+
+    /**
+     * Some Android TV firmware has no DocumentsUI/file-picker app. Fall back to Android's
+     * indexed media collections so users can still choose local photos and MP4s with no
+     * additional app or network connection.
+     */
+    private void showIndexedMediaPicker() {
+        final ArrayList<Uri> uris = new ArrayList<>();
+        final ArrayList<String> labels = new ArrayList<>();
+        queryWallpaperMedia(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, uris, labels);
+        queryWallpaperMedia(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, uris, labels);
+        if (labels.isEmpty()) {
+            Toast.makeText(this, R.string.wallpaper_picker_unavailable, Toast.LENGTH_LONG).show();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.tv_storage_wallpaper)
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> importTvWallpaper(uris.get(which)))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void queryWallpaperMedia(Uri collection, boolean video, ArrayList<Uri> uris, ArrayList<String> labels) {
+        String[] projection = video
+                ? new String[]{android.provider.MediaStore.Video.Media._ID, android.provider.MediaStore.Video.Media.DISPLAY_NAME}
+                : new String[]{android.provider.MediaStore.Images.Media._ID, android.provider.MediaStore.Images.Media.DISPLAY_NAME, android.provider.MediaStore.Images.Media.MIME_TYPE};
+        String selection = video ? null : android.provider.MediaStore.Images.Media.MIME_TYPE + " IN (?,?,?)";
+        String[] args = video ? null : new String[]{"image/jpeg", "image/png", "image/gif"};
+        String sort = video ? android.provider.MediaStore.Video.Media.DATE_ADDED + " DESC"
+                : android.provider.MediaStore.Images.Media.DATE_ADDED + " DESC";
+        try (android.database.Cursor cursor = getContentResolver().query(collection, projection, selection, args, sort)) {
+            if (cursor == null) return;
+            int idColumn = cursor.getColumnIndexOrThrow(video ? android.provider.MediaStore.Video.Media._ID : android.provider.MediaStore.Images.Media._ID);
+            int nameColumn = cursor.getColumnIndexOrThrow(video ? android.provider.MediaStore.Video.Media.DISPLAY_NAME : android.provider.MediaStore.Images.Media.DISPLAY_NAME);
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(idColumn);
+                Uri item = android.content.ContentUris.withAppendedId(collection, id);
+                String name = cursor.getString(nameColumn);
+                uris.add(item);
+                labels.add((video ? "🎬 " : "🖼 ") + (name == null ? item.getLastPathSegment() : name));
+            }
+        } catch (Exception ignored) { }
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_TV_WALLPAPER || resultCode != RESULT_OK || data == null || data.getData() == null) return;
-        Uri uri = data.getData();
+        importTvWallpaper(data.getData());
+    }
+
+    private void importTvWallpaper(Uri uri) {
         String mime = getContentResolver().getType(uri);
         String ext = wallpaperExtension(uri, mime);
         if (ext == null) {

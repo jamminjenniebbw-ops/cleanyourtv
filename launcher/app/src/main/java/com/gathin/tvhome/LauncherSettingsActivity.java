@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -15,6 +16,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +42,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView openOnStartChoice;
     private TextView prayerTimesChoice;
     private TextView scheduledWallpaperChoice;
+    private TextView tvStorageWallpaperChoice;
+    private static final int REQUEST_TV_WALLPAPER = 7401;
     private boolean showPrayerTimes;
     private boolean scheduledWallpaperEnabled;
     private int columns;
@@ -140,6 +145,8 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
+        tvStorageWallpaperChoice = findViewById(R.id.tvStorageWallpaperChoice);
+        tvStorageWallpaperChoice.setOnClickListener(v -> chooseWallpaperFromTv());
         scheduledWallpaperChoice = findViewById(R.id.scheduledWallpaperChoice);
         scheduledWallpaperEnabled = choices.getBoolean("scheduled_wallpaper_enabled", false);
         scheduledWallpaperChoice.setOnClickListener(v -> {
@@ -185,6 +192,59 @@ public final class LauncherSettingsActivity extends Activity {
         LinearLayout row = (LinearLayout) views[0].getParent();
         row.removeAllViews();
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+
+    private void chooseWallpaperFromTv() {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("*/*");
+        pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
+        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(pick, REQUEST_TV_WALLPAPER); }
+        catch (ActivityNotFoundException | SecurityException e) {
+            Toast.makeText(this, R.string.wallpaper_picker_unavailable, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_TV_WALLPAPER || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        String mime = getContentResolver().getType(uri);
+        String ext = "video/mp4".equals(mime) ? "mp4" : "image/gif".equals(mime) ? "gif"
+                : ("image/jpeg".equals(mime) || "image/png".equals(mime)) ? "jpg" : null;
+        if (ext == null) {
+            Toast.makeText(this, R.string.wallpaper_unsupported, Toast.LENGTH_LONG).show();
+            return;
+        }
+        File dir = Config.dir(this);
+        if (dir == null || (!dir.exists() && !dir.mkdirs())) {
+            Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+        File temp = new File(dir, "wallpaper.importing"), target = new File(dir, "wallpaper." + ext);
+        try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream out = new FileOutputStream(temp)) {
+            if (in == null) throw new java.io.IOException("No stream");
+            byte[] buffer = new byte[32768]; int n; long total = 0;
+            while ((n = in.read(buffer)) != -1) {
+                total += n;
+                if (total > 100L * 1024 * 1024) throw new java.io.IOException("Too large");
+                out.write(buffer, 0, n);
+            }
+            out.getFD().sync();
+            if (total == 0 || !temp.renameTo(target)) throw new java.io.IOException("Save failed");
+            for (String other : new String[]{"jpg", "gif", "mp4"}) {
+                File f = new File(dir, "wallpaper." + other);
+                if (!f.equals(target)) f.delete();
+            }
+            choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
+            changed();
+            Toast.makeText(this, R.string.wallpaper_imported, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            temp.delete();
+            Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void showWallpaperPicker() {

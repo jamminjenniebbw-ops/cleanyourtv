@@ -3,7 +3,7 @@ name: Build CleanYourTV with Prayer Times
 on:
   workflow_dispatch:
   push:
-    branches: [ main, fix/mp4-wallpaper-textureview, feature/scheduled-wallpaper-mode ]
+    branches: [ main, fix/mp4-wallpaper-textureview, feature/scheduled-wallpaper-mode, feature/builtin-wallpaper-picker ]
     paths:
       - "launcher/app/src/main/**"
       - "launcher/app/build.gradle"

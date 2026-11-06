@@ -618,9 +618,11 @@ final class Config {
         if (wallpaper == null || !wallpaper.isFile() || wallpaper.length() <= 0) {
             wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
         }
-        if (wallpaper != null && !(wallpaper.isFile() && wallpaper.length() > 0)) {
-            File gif = dir != null ? new File(dir, "wallpaper.gif") : null;
-            wallpaper = gif != null && gif.isFile() && gif.length() > 0 ? gif : null;
+        if (wallpaper == null || !wallpaper.isFile() || wallpaper.length() <= 0) {
+            wallpaper = dir != null ? new File(dir, "wallpaper.png") : null;
+        }
+        if (wallpaper == null || !wallpaper.isFile() || wallpaper.length() <= 0) {
+            wallpaper = dir != null ? new File(dir, "wallpaper.gif") : null;
         }
         // A theme can also switch the wallpaper off while the file is still there.
         boolean wallpaperEnabled = json == null || bool(json, "wallpaper", true);

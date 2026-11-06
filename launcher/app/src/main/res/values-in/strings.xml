@@ -108,4 +108,10 @@
     <string name="race_live">%1$s · langsung</string>
     <string name="race_finished">Bendera finis</string>
     <string name="last_opened">Terakhir dibuka %1$s</string>
+
+    <string name="wallpaper_from_tv">Pilih wallpaper dari penyimpanan TV</string>
+    <string name="wallpaper_picker_unavailable">Pemilih file tidak tersedia di TV ini</string>
+    <string name="wallpaper_unsupported">Pilih file JPG, PNG, GIF, atau MP4</string>
+    <string name="wallpaper_imported">Wallpaper berhasil disalin ke TV</string>
+    <string name="wallpaper_import_failed">Wallpaper tidak dapat disalin</string>
 </resources>

@@ -151,4 +151,10 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+
+    <string name="wallpaper_from_tv">Choose wallpaper from TV storage</string>
+    <string name="wallpaper_picker_unavailable">No file picker is available on this TV</string>
+    <string name="wallpaper_unsupported">Choose a JPG, PNG, GIF, or MP4 file</string>
+    <string name="wallpaper_imported">Wallpaper copied to this TV</string>
+    <string name="wallpaper_import_failed">Could not copy the wallpaper</string>
 </resources>

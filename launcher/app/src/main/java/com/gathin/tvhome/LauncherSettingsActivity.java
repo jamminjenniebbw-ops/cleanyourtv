@@ -36,6 +36,7 @@ public final class LauncherSettingsActivity extends Activity {
     private static final int[] DOCK_OPACITIES = {100, 70, 50, 30};
     private final TextView[] dockChoices = new TextView[DOCK_OPACITIES.length];
     private TextView wallpaperChoice;
+    private TextView builtinWallpaperChoice;
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
@@ -115,6 +116,8 @@ public final class LauncherSettingsActivity extends Activity {
         }
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
+        builtinWallpaperChoice = findViewById(R.id.builtinWallpaperChoice);
+        builtinWallpaperChoice.setOnClickListener(v -> showBuiltinWallpaperPicker());
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
             animations = !animations;
@@ -164,7 +167,7 @@ public final class LauncherSettingsActivity extends Activity {
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
-                    .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
+                    .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice")
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
                     .remove("scheduled_wallpaper_enabled").commit();
             scheduledWallpaperEnabled = false;
@@ -245,7 +248,7 @@ public final class LauncherSettingsActivity extends Activity {
                 File f = new File(dir, "wallpaper." + other);
                 if (!f.equals(target) && f.exists()) f.delete();
             }
-            choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
+            choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice").apply();
             changed();
             Toast.makeText(this, R.string.wallpaper_imported, Toast.LENGTH_LONG).show();
         } catch (Exception e) {
@@ -275,6 +278,55 @@ public final class LauncherSettingsActivity extends Activity {
         return null;
     }
 
+    private static final String[] BUILTIN_WALLPAPERS = {
+            "IMG_20261107_021316.jpg", "IMG_20261107_021332.jpg",
+            "IMG_20261107_021438.jpg", "IMG_20261107_021503.jpg",
+            "IMG_20261107_021518.jpg", "IMG_20261107_021534.jpg",
+            "IMG_20261107_021553.jpg", "IMG_20261107_021613.jpg",
+            "IMG_20261107_021638.jpg", "IMG_20261107_021706.jpg"
+    };
+
+    private void showBuiltinWallpaperPicker() {
+        String[] labels = new String[BUILTIN_WALLPAPERS.length];
+        for (int i = 0; i < labels.length; i++) labels[i] = getString(R.string.builtin_wallpaper_item, i + 1);
+        String selected = choices.getString("builtin_wallpaper_choice", null);
+        int checked = -1;
+        for (int i = 0; i < BUILTIN_WALLPAPERS.length; i++) {
+            if (BUILTIN_WALLPAPERS[i].equals(selected)) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.builtin_wallpaper_title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    File target = new File(getFilesDir(), "builtin_wallpaper.jpg");
+                    File temp = new File(getFilesDir(), "builtin_wallpaper.importing");
+                    try (InputStream in = getAssets().open("builtin_wallpapers/" + BUILTIN_WALLPAPERS[which]);
+                         FileOutputStream out = new FileOutputStream(temp)) {
+                        byte[] buffer = new byte[32768];
+                        int n;
+                        while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                        out.getFD().sync();
+                        if (target.exists() && !target.delete()) throw new java.io.IOException("Cannot replace wallpaper");
+                        if (!temp.renameTo(target)) throw new java.io.IOException("Cannot install wallpaper");
+                        choices.edit().putString("builtin_wallpaper_choice", BUILTIN_WALLPAPERS[which])
+                                .remove(Config.WALLPAPER_CHOICE_KEY).apply();
+                        changed();
+                        refresh();
+                        Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        temp.delete();
+                        Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
+                    choices.edit().remove("builtin_wallpaper_choice").apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void showWallpaperPicker() {
         File dir = Config.dir(this);
         List<File> images = new java.util.ArrayList<>(WallpaperRotation.images(
@@ -292,6 +344,7 @@ public final class LauncherSettingsActivity extends Activity {
                 .setTitle(R.string.wallpaper_label)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
+                    choices.edit().remove("builtin_wallpaper_choice").apply();
                     if (which == images.size()) {
                         choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
                     } else {
@@ -303,7 +356,7 @@ public final class LauncherSettingsActivity extends Activity {
                     refresh();
                 })
                 .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
-                    choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
+                    choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice").apply();
                     changed();
                     refresh();
                 })
@@ -405,6 +458,11 @@ public final class LauncherSettingsActivity extends Activity {
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
+        String builtinCurrent = choices.getString("builtin_wallpaper_choice", null);
+        int builtinIndex = java.util.Arrays.asList(BUILTIN_WALLPAPERS).indexOf(builtinCurrent);
+        builtinWallpaperChoice.setText(getString(R.string.builtin_wallpaper_state,
+                builtinIndex < 0 ? getString(R.string.wallpaper_theme_default)
+                        : getString(R.string.builtin_wallpaper_selected, builtinIndex + 1)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         prayerTimesChoice.setText(getString(R.string.prayer_times_state, getString(showPrayerTimes ? R.string.on : R.string.off)));
         scheduledWallpaperChoice.setText(getString(R.string.scheduled_wallpaper_state,
@@ -415,7 +473,8 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean hasOnTvChoices() {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
-                || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
+                || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("builtin_wallpaper_choice")
+                || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times")
                 || choices.contains("scheduled_wallpaper_enabled");
     }

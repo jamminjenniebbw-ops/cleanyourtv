@@ -2,6 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
+// The ten supplied JPEGs are stored in the repository root as wp.zip.
+def builtinWallpaperAssets = layout.buildDirectory.dir('generated/builtin-wallpaper-assets')
+tasks.register('unpackBuiltinWallpapers', Copy) {
+    from { zipTree(rootProject.file('../wp.zip')) }
+    into builtinWallpaperAssets.map { it.dir('builtin_wallpapers') }
+}
 android {
     namespace 'com.gathin.tvhome'
     compileSdk 34
@@ -34,11 +40,17 @@ android {
         }
     }
 
+    sourceSets {
+        main.assets.srcDir(builtinWallpaperAssets)
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+tasks.named('preBuild').configure { dependsOn tasks.named('unpackBuiltinWallpapers') }
 
 dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.3.2'

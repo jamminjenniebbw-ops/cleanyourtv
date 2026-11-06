@@ -651,6 +651,17 @@ final class Config {
             wallpaper = chosen.isEmpty() ? null : chosen.get(0);
             wallpaperEnabled = !chosen.isEmpty();
         }
+        // Bundled gallery selection is copied to private app storage for reliable offline use.
+        String builtinWallpaper = choices.getString("builtin_wallpaper_choice", null);
+        if (builtinWallpaper != null) {
+            File localBuiltin = new File(ctx.getFilesDir(), "builtin_wallpaper.jpg");
+            if (localBuiltin.isFile() && localBuiltin.length() > 0) {
+                wallpapers.clear();
+                wallpapers.add(localBuiltin);
+                wallpaper = localBuiltin;
+                wallpaperEnabled = true;
+            }
+        }
         // A festive skin comes only from a theme; config.xml has no festival.
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));

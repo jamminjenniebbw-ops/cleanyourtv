@@ -99,6 +99,11 @@
             android:layout_marginTop="28dp" />
 
         <TextView
+            android:id="@+id/builtinWallpaperChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp" />
+
+        <TextView
             android:id="@+id/tvStorageWallpaperChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp"

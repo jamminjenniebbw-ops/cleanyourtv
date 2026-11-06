@@ -152,6 +152,10 @@
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
 
+    <string name="builtin_wallpaper_title">Built-in wallpapers (10)</string>
+    <string name="builtin_wallpaper_state">Built-in wallpaper: %1$s</string>
+    <string name="builtin_wallpaper_item">Wallpaper %1$d</string>
+    <string name="builtin_wallpaper_selected">Wallpaper %1$d</string>
     <string name="wallpaper_from_tv">Choose wallpaper from TV storage</string>
     <string name="wallpaper_picker_unavailable">No file picker is available on this TV</string>
     <string name="wallpaper_unsupported">Choose a JPG, PNG, GIF, or MP4 file</string>

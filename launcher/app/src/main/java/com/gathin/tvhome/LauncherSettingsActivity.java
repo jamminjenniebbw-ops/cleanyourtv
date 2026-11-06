@@ -45,6 +45,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView scheduledWallpaperChoice;
     private TextView tvStorageWallpaperChoice;
     private static final int REQUEST_TV_WALLPAPER = 7401;
+    private static final int REQUEST_MEDIA_PERMISSION = 7402;
     private boolean showPrayerTimes;
     private boolean scheduledWallpaperEnabled;
     private int columns;
@@ -218,6 +219,18 @@ public final class LauncherSettingsActivity extends Activity {
      * additional app or network connection.
      */
     private void showIndexedMediaPicker() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            boolean imagesGranted = checkSelfPermission("android.permission.READ_MEDIA_IMAGES") == PackageManager.PERMISSION_GRANTED;
+            boolean videosGranted = checkSelfPermission("android.permission.READ_MEDIA_VIDEO") == PackageManager.PERMISSION_GRANTED;
+            if (!imagesGranted || !videosGranted) {
+                requestPermissions(new String[]{"android.permission.READ_MEDIA_IMAGES", "android.permission.READ_MEDIA_VIDEO"}, REQUEST_MEDIA_PERMISSION);
+                return;
+            }
+        } else if (android.os.Build.VERSION.SDK_INT >= 23
+                && checkSelfPermission("android.permission.READ_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"android.permission.READ_EXTERNAL_STORAGE"}, REQUEST_MEDIA_PERMISSION);
+            return;
+        }
         final ArrayList<Uri> uris = new ArrayList<>();
         final ArrayList<String> labels = new ArrayList<>();
         queryWallpaperMedia(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, uris, labels);
@@ -231,6 +244,16 @@ public final class LauncherSettingsActivity extends Activity {
                 .setItems(labels.toArray(new String[0]), (dialog, which) -> importTvWallpaper(uris.get(which)))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_MEDIA_PERMISSION) {
+            boolean granted = grantResults.length > 0;
+            for (int result : grantResults) granted &= result == PackageManager.PERMISSION_GRANTED;
+            if (granted) showIndexedMediaPicker();
+            else Toast.makeText(this, R.string.wallpaper_picker_unavailable, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void queryWallpaperMedia(Uri collection, boolean video, ArrayList<Uri> uris, ArrayList<String> labels) {

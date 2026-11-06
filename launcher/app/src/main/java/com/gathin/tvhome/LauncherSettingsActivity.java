@@ -233,7 +233,9 @@ public final class LauncherSettingsActivity extends Activity {
                 out.write(buffer, 0, n);
             }
             out.getFD().sync();
-            if (total == 0 || !temp.renameTo(target)) throw new java.io.IOException("Save failed");
+            if (total == 0) throw new java.io.IOException("Empty wallpaper");
+            if (target.exists() && !target.delete()) throw new java.io.IOException("Cannot replace old wallpaper");
+            if (!temp.renameTo(target)) throw new java.io.IOException("Save failed");
             for (String other : new String[]{"jpg", "gif", "mp4"}) {
                 File f = new File(dir, "wallpaper." + other);
                 if (!f.equals(target)) f.delete();

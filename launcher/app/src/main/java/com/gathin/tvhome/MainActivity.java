@@ -955,6 +955,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (adapter != null) adapter.setDefaultHomeMode(true);
         GridLayoutManager homeLayout = (GridLayoutManager) grid.getLayoutManager();
         homeLayout.setSpanCount(singleRow ? 1 : defaultHomeCount);
+        if (prayerTimesPanel != null) prayerTimesPanel.showAtHomeTop();
+        applyDefaultHomeGridPadding(true);
         grid.requestLayout();
         grid.scrollToPosition(0);
         lastFocused = 0;
@@ -2311,7 +2313,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return !forward && position == 0;
         }
         if (adapter.isDefaultHomeMode()) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
+            // Let DPAD_UP use Android's normal focus search to reach Inputs, Wi-Fi and Settings.
+            // Only DPAD_DOWN changes the app projection to the full configured app drawer.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 setDefaultHomeMode(false, 0);
                 return true;
@@ -2340,6 +2344,30 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return true;
     }
 
+    /**
+     * Apply the compact Home viewport or restore the launcher's original app-drawer viewport.
+     * This must be done explicitly when the projection changes: a RecyclerView layout-size
+     * listener is not guaranteed to run when only the adapter and span count change.
+     */
+    private void applyDefaultHomeGridPadding(boolean home) {
+        if (grid == null) return;
+        if (home && !singleRow) {
+            float d = density;
+            int width = grid.getWidth() > 0 ? grid.getWidth() : root.getWidth();
+            int inner = Math.max(0, width - gridBasePaddingLeft - gridBasePaddingRight);
+            // A 68dp tile in a 76dp cell leaves an 8dp gap; center the 3/5-app group.
+            int groupWidth = Math.min(inner, Math.round(76 * d) * defaultHomeCount);
+            int side = Math.max(0, (width - groupWidth) / 2);
+            int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * d)), d)
+                    + Math.round(AppAdapter.DOCK_EXTRA_DP * d);
+            int top = Math.max(0, grid.getHeight() - homeItemH - Math.round(30 * d));
+            grid.setPadding(side, top, side, gridBasePaddingBottom);
+        } else {
+            grid.setPadding(gridBasePaddingLeft, home ? grid.getPaddingTop() : Math.round(18 * density),
+                    gridBasePaddingRight, gridBasePaddingBottom);
+        }
+    }
+
     private void setDefaultHomeMode(boolean home, int focusPosition) {
         if (adapter == null || adapter.isDefaultHomeMode() == home) return;
         adapter.setDefaultHomeMode(home);
@@ -2347,6 +2375,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         layout.setSpanCount(singleRow ? 1 : (home ? defaultHomeCount : COLUMNS));
         grid.stopScroll();
         grid.scrollToPosition(0);
+        applyDefaultHomeGridPadding(home);
+        if (prayerTimesPanel != null) {
+            if (home) prayerTimesPanel.showAtHomeTop();
+            else prayerTimesPanel.hideForNavigation();
+        }
         grid.requestLayout();
         grid.post(() -> {
             if (isFinishing() || adapter == null) return;

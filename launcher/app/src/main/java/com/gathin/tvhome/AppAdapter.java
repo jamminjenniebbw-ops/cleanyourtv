@@ -463,7 +463,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         int normalWidth = tileWidthPx(inner, parent.getHeight(), gridColumns, rowsBelowDock, dockTitle, dockRow, density);
         int tileWidth;
-        if (position < dockSize) {
+        if (!singleRow && position < dockSize) {
             int cell = inner / Math.max(1, dockSize);
             tileWidth = Math.min(Math.round(128 * density), Math.max(Math.round(80 * density), cell - Math.round(20 * density)));
         } else {
@@ -486,7 +486,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageView icon = item.findViewById(R.id.icon);
         FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
         int iconSize = uniformTiles ? Math.round(tileHeight * ICON_SHARE)
-                : Math.round((position < dockSize ? 36 : 48) * density);
+                : Math.round((!singleRow && position < dockSize ? 36 : 48) * density);
         if (iconLp.width != iconSize || iconLp.height != iconSize) {
             iconLp.width = iconLp.height = iconSize;
             if (uniformTiles) iconLp.bottomMargin = 0;

@@ -16,6 +16,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.util.TypedValue;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
@@ -268,8 +269,21 @@ public final class LauncherSettingsActivity extends Activity {
         grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         grid.setSelector(android.R.color.transparent);
         grid.setChoiceMode(GridView.CHOICE_MODE_NONE);
+        // Keep focus on GridView itself: focusable child cards can steal D-pad events
+        // inconsistently across Android TV vendors. GridView then owns selection and OK.
         grid.setFocusable(true);
-        grid.setAdapter(new WallpaperMediaAdapter(uris, labels));
+        grid.setFocusableInTouchMode(false);
+        WallpaperMediaAdapter mediaAdapter = new WallpaperMediaAdapter(uris, labels);
+        grid.setAdapter(mediaAdapter);
+        grid.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view,
+                    int position, long id) {
+                mediaAdapter.setSelectedPosition(position);
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                mediaAdapter.setSelectedPosition(-1);
+            }
+        });
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.wallpaper_from_tv)
                 .setView(grid)
@@ -280,8 +294,9 @@ public final class LauncherSettingsActivity extends Activity {
             importTvWallpaper(uris.get(position));
         });
         dialog.setOnShowListener(ignored -> grid.post(() -> {
+            grid.requestFocus();
             grid.setSelection(0);
-            if (grid.getChildCount() > 0) grid.getChildAt(0).requestFocus();
+            mediaAdapter.setSelectedPosition(0);
         }));
         dialog.show();
     }
@@ -294,6 +309,7 @@ public final class LauncherSettingsActivity extends Activity {
     private final class WallpaperMediaAdapter extends BaseAdapter {
         private final ArrayList<Uri> items;
         private final ArrayList<String> names;
+        private int selectedPosition = -1;
         WallpaperMediaAdapter(ArrayList<Uri> items, ArrayList<String> names) {
             this.items = items;
             this.names = names;
@@ -301,6 +317,11 @@ public final class LauncherSettingsActivity extends Activity {
         @Override public int getCount() { return items.size(); }
         @Override public Object getItem(int position) { return items.get(position); }
         @Override public long getItemId(int position) { return position; }
+        void setSelectedPosition(int position) {
+            if (selectedPosition == position) return;
+            selectedPosition = position;
+            notifyDataSetChanged();
+        }
         @Override public View getView(int position, View recycled, ViewGroup parent) {
             LinearLayout cell;
             ImageView preview;
@@ -313,13 +334,24 @@ public final class LauncherSettingsActivity extends Activity {
                 cell = new LinearLayout(LauncherSettingsActivity.this);
                 cell.setOrientation(LinearLayout.VERTICAL);
                 cell.setGravity(android.view.Gravity.CENTER);
-                cell.setFocusable(true);
-                cell.setFocusableInTouchMode(true);
+                // Cards are deliberately not focusable. The GridView owns D-pad focus,
+                // so directional movement and DPAD_CENTER behave consistently on TV firmware.
+                cell.setFocusable(false);
+                cell.setFocusableInTouchMode(false);
                 cell.setPadding(dp(5), dp(5), dp(5), dp(5));
                 GradientDrawable normal = new GradientDrawable();
                 normal.setColor(Color.rgb(35, 42, 70));
                 normal.setCornerRadius(dp(7));
-                cell.setBackground(normal);
+                normal.setStroke(dp(1), Color.rgb(90, 100, 130));
+                GradientDrawable selected = new GradientDrawable();
+                selected.setColor(Color.rgb(65, 105, 190));
+                selected.setCornerRadius(dp(7));
+                selected.setStroke(dp(3), Color.WHITE);
+                StateListDrawable states = new StateListDrawable();
+                states.addState(new int[]{android.R.attr.state_selected}, selected);
+                states.addState(new int[]{android.R.attr.state_focused}, selected);
+                states.addState(new int[]{}, normal);
+                cell.setBackground(states);
                 preview = new ImageView(LauncherSettingsActivity.this);
                 preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 cell.addView(preview, new LinearLayout.LayoutParams(
@@ -333,16 +365,7 @@ public final class LauncherSettingsActivity extends Activity {
                 LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, dp(27));
                 cell.addView(caption, cp);
-                cell.setOnFocusChangeListener((v, focused) -> {
-                    v.setScaleX(focused ? 1.07f : 1f);
-                    v.setScaleY(focused ? 1.07f : 1f);
-                    GradientDrawable bg = new GradientDrawable();
-                    bg.setColor(focused ? Color.rgb(65, 105, 190) : Color.rgb(35, 42, 70));
-                    bg.setCornerRadius(dp(7));
-                    bg.setStroke(dp(focused ? 3 : 1),
-                            focused ? Color.WHITE : Color.rgb(90, 100, 130));
-                    v.setBackground(bg);
-                });
+
             }
             Uri uri = items.get(position);
             try {
@@ -360,6 +383,7 @@ public final class LauncherSettingsActivity extends Activity {
                 preview.setImageResource(android.R.drawable.ic_menu_gallery);
             }
             caption.setText(names.get(position));
+            cell.setSelected(position == selectedPosition);
             return cell;
         }
     }
@@ -440,6 +464,9 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice").apply();
             changed();
             Toast.makeText(this, R.string.wallpaper_imported, Toast.LENGTH_LONG).show();
+            // Leave settings so the home activity resumes and reloads the new wallpaper.
+            setResult(RESULT_OK);
+            finish();
         } catch (Exception e) {
             temp.delete();
             if (backup.exists() && !target.exists()) backup.renameTo(target);

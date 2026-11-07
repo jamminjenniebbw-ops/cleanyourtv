@@ -140,6 +140,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private AppAdapter adapter;
     private RecyclerView grid;
+    private int gridBasePaddingLeft, gridBasePaddingRight, gridBasePaddingBottom;
     private FrameLayout root;
     private PrayerTimesPanel prayerTimesPanel;
     private WallpaperPlayer wallpaperPlayer;
@@ -408,7 +409,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         dockRow = cfg.dockRow;
         singleRow = cfg.singleRow;
         int homeCount = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getInt("default_home_apps", 3);
-        defaultHomeCount = singleRow ? COLUMNS : (homeCount == 5 ? 5 : 3);
+        defaultHomeCount = homeCount == 5 ? 5 : 3;
         focusOvershoot = cfg.focusOvershoot;
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
@@ -524,10 +525,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hiddenApps = new HashSet<>(cfg.hiddenApps);
 
         grid = findViewById(R.id.grid);
+        gridBasePaddingLeft = grid.getPaddingLeft();
+        gridBasePaddingRight = grid.getPaddingRight();
+        gridBasePaddingBottom = grid.getPaddingBottom();
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
         // Mirror only the app grid; the header and other locales keep their own layouts.
         // single_row: one span laid out sideways, so the same adapter, glass and dock band serve a scrolling row.
-        grid.setLayoutManager(new GridLayoutManager(this, singleRow ? 1 : COLUMNS * defaultHomeCount,
+        grid.setLayoutManager(new GridLayoutManager(this, singleRow ? 1 : defaultHomeCount,
                 singleRow ? RecyclerView.HORIZONTAL : RecyclerView.VERTICAL, false) {
             @Override
             protected boolean isLayoutRTL() {
@@ -582,8 +586,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         ((GridLayoutManager) grid.getLayoutManager()).setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override public int getSpanSize(int position) {
                 if (singleRow) return 1;
-                if (adapter != null && adapter.isLibraryAt(position)) return COLUMNS * defaultHomeCount;
-                return position < defaultHomeCount ? COLUMNS : defaultHomeCount;
+                if (adapter != null && adapter.isLibraryAt(position)) return ((GridLayoutManager) grid.getLayoutManager()).getSpanCount();
+                return 1;
             }
         });
         grid.setHasFixedSize(true);
@@ -644,16 +648,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // The previous bottom calculation still left enough room for the next app row to peek
             // into the initial viewport. Lower the dock by up to half a tile, while keeping the
             // shift proportional to the actual tile size on different TV resolutions.
-            if (MainActivity.this.dockRow && !singleRow) {
-                // Centre the compact default-home row vertically; the app drawer retains its own grid sizing.
-                int homeCell = inner / Math.max(1, defaultHomeCount);
-                int homeTileW = Math.min(Math.round(128 * density), Math.max(Math.round(80 * density), homeCell - Math.round(20 * density)));
-                int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(homeTileW), density)
+            if (adapter != null && adapter.isDefaultHomeMode() && !singleRow) {
+                int compactCell = Math.round(92 * density);
+                int targetWidth = Math.min(inner, compactCell * defaultHomeCount);
+                int side = Math.max(0, (width - targetWidth) / 2);
+                int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * density)), density)
                         + Math.round(AppAdapter.DOCK_EXTRA_DP * density);
-                want = Math.max(0, (h - homeItemH) / 2);
-            }
-            if (grid.getPaddingTop() != want) {
-                grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
+                want = Math.max(0, h - homeItemH - Math.round(30 * density));
+                if (grid.getPaddingLeft() != side || grid.getPaddingRight() != side || grid.getPaddingTop() != want) {
+                    grid.setPadding(side, want, side, gridBasePaddingBottom);
+                }
+            } else if (adapter != null && !adapter.isDefaultHomeMode()) {
+                want = Math.round(18 * density);
+                if (grid.getPaddingLeft() != gridBasePaddingLeft || grid.getPaddingRight() != gridBasePaddingRight || grid.getPaddingTop() != want) {
+                    grid.setPadding(gridBasePaddingLeft, want, gridBasePaddingRight, gridBasePaddingBottom);
+                }
+            } else if (grid.getPaddingTop() != want) {
+                grid.setPadding(gridBasePaddingLeft, want, gridBasePaddingRight, gridBasePaddingBottom);
                 // A vertical grid parks the dock on the new padding line by scrolling (onTileFocused); a sideways
                 // row cannot scroll vertically, and the layout request made from inside this layout pass is
                 // dropped, so lay the row out again on the next frame. The glass and the title were placed for the
@@ -941,6 +952,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (openLauncherSettingsIfAsked(intent)) return;
         if (openInputsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
+        if (adapter != null) adapter.setDefaultHomeMode(true);
+        GridLayoutManager homeLayout = (GridLayoutManager) grid.getLayoutManager();
+        homeLayout.setSpanCount(singleRow ? 1 : defaultHomeCount);
+        grid.requestLayout();
         grid.scrollToPosition(0);
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
@@ -2284,7 +2299,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
         int count = adapter.appCount();
-        int target;
         if (singleRow) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) return true;
@@ -2296,51 +2310,49 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             return !forward && position == 0;
         }
-        boolean homeRow = position < defaultHomeCount;
-        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
-            if (forward && position == adapter.focusablePosition(count - 1) && adapter.isLibraryAt(count)) {
-                focusLibrary();
+        if (adapter.isDefaultHomeMode()) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                setDefaultHomeMode(false, 0);
                 return true;
             }
-            if (homeRow) {
-                return GridNavigation.atHorizontalEdge(position, Math.min(count, adapter.dockFilled()),
-                        defaultHomeCount, rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
-            }
-            return GridNavigation.atHorizontalEdge(position - defaultHomeCount, count - defaultHomeCount,
-                    COLUMNS, rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
+            return GridNavigation.atHorizontalEdge(position, count, defaultHomeCount,
+                    rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (homeRow) return false;
-            int gridIndex = position - defaultHomeCount;
-            if (gridIndex < COLUMNS) {
-                // Map the app-drawer column back to the nearest tile in the shorter centred home row.
-                target = Math.min(defaultHomeCount - 1,
-                        Math.max(0, Math.round(((gridIndex % COLUMNS) + 0.5f) * defaultHomeCount / COLUMNS - 0.5f)));
-            } else {
-                target = position - COLUMNS;
+            if (position < COLUMNS) {
+                int homeTarget = Math.min(defaultHomeCount - 1,
+                        Math.max(0, Math.round(((position % COLUMNS) + 0.5f) * defaultHomeCount / COLUMNS - 0.5f)));
+                setDefaultHomeMode(true, homeTarget);
+                return true;
             }
-        } else {
-            if (homeRow) {
-                // The home row is centred; map each home tile to its nearest column in the app drawer.
-                int drawerColumn = Math.min(COLUMNS - 1,
-                        Math.max(0, Math.round((position + 0.5f) * COLUMNS / defaultHomeCount - 0.5f)));
-                target = defaultHomeCount + drawerColumn;
-                target = Math.min(target, count - 1);
-            } else {
-                int gridIndex = position - defaultHomeCount;
-                int lastRowStart = defaultHomeCount + ((count - defaultHomeCount - 1) / COLUMNS) * COLUMNS;
-                if (position >= lastRowStart) {
-                    if (adapter.isLibraryAt(count)) focusLibrary();
-                    return true;
-                }
-                target = Math.min(position + COLUMNS, count - 1);
+            focusTile(position - COLUMNS);
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
+            if (position >= lastRowStart) {
+                if (adapter.isLibraryAt(count)) focusLibrary();
+                return true;
             }
+            focusTile(Math.min(position + COLUMNS, count - 1));
         }
-        focusTile(target);
         grid.playSoundEffect(keyCode == KeyEvent.KEYCODE_DPAD_UP
                 ? SoundEffectConstants.NAVIGATION_UP : SoundEffectConstants.NAVIGATION_DOWN);
         return true;
+    }
+
+    private void setDefaultHomeMode(boolean home, int focusPosition) {
+        if (adapter == null || adapter.isDefaultHomeMode() == home) return;
+        adapter.setDefaultHomeMode(home);
+        GridLayoutManager layout = (GridLayoutManager) grid.getLayoutManager();
+        layout.setSpanCount(singleRow ? 1 : (home ? defaultHomeCount : COLUMNS));
+        grid.stopScroll();
+        grid.scrollToPosition(0);
+        grid.requestLayout();
+        grid.post(() -> {
+            if (isFinishing() || adapter == null) return;
+            int count = adapter.appCount();
+            if (count > 0) focusTile(Math.max(0, Math.min(focusPosition, count - 1)));
+        });
     }
 
     @Override public void onLibraryFocused() {

@@ -620,7 +620,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (defaultHomeMode) {
             items.addAll(allItems.subList(0, Math.min(dockSize, allItems.size())));
         } else {
-            items.addAll(allItems.subList(Math.min(dockSize, allItems.size()), allItems.size()));
+            // The drawer is the complete app list, including apps pinned on the compact Home row.
+            // Keep the same canonical order; only the Home projection is limited to dockSize.
+            items.addAll(allItems);
         }
     }
 

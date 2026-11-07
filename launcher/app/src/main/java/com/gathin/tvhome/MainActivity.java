@@ -2358,14 +2358,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             float d = density;
             int width = grid.getWidth() > 0 ? grid.getWidth() : root.getWidth();
             int inner = Math.max(0, width - gridBasePaddingLeft - gridBasePaddingRight);
-            // Use the same fixed 76dp cell width for both 3- and 5-app layouts. The cells
-            // are centered as a group, so changing the count never changes the gap between icons.
-            int groupWidth = Math.min(inner, Math.round(76 * d) * defaultHomeCount);
+            // Keep the icon centers closer together while preserving the existing icon/card size.
+            // A 68dp cell gives the compact Home row a tighter rhythm for both 3 and 5 shortcuts.
+            int groupWidth = Math.min(inner, Math.round(68 * d) * defaultHomeCount);
             int side = gridBasePaddingLeft + Math.max(0, (inner - groupWidth) / 2);
             int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * d)), d)
                     + Math.round(AppAdapter.DOCK_EXTRA_DP * d);
-            // Keep the dock close to the lower edge instead of leaving the previous 30dp gap.
-            int top = Math.max(0, grid.getHeight() - homeItemH - Math.round(12 * d));
+            // Align the dock to the bottom of the Home viewport; the decoration is already
+            // included in homeItemH, so no additional 12dp spacer is needed.
+            int top = Math.max(0, grid.getHeight() - homeItemH);
             if (grid.getPaddingLeft() != side || grid.getPaddingRight() != side
                     || grid.getPaddingTop() != top || grid.getPaddingBottom() != gridBasePaddingBottom) {
                 grid.setPadding(side, top, side, gridBasePaddingBottom);

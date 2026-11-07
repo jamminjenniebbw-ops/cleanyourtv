@@ -1424,16 +1424,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (!down) {
                 int n = adapter.movableCount();
                 if (dockEditAppKey != null) {
-                    if (pos < Math.min(COLUMNS, n)) {
+                    if (pos < Math.min(defaultHomeCount, n)) {
                         int from = adapter.positionOf(dockEditAppKey);
                         if (from >= 0) swapIntoDock(pos, from);
                         else endReorder();
                     }
                 } else if (dockEditSlot < 0) {
-                    if (pos < Math.min(COLUMNS, n)) {
+                    if (pos < Math.min(defaultHomeCount, n)) {
                         dockEditSlot = pos;
                         dimOthers();
-                        focusTile(Math.min(COLUMNS, n - 1));
+                        focusTile(Math.min(defaultHomeCount, n - 1));
                         Toast.makeText(this, R.string.dock_edit_pick_app, Toast.LENGTH_LONG).show();
                     }
                 } else if (pos < n) {
@@ -1460,7 +1460,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else if (inDock) {
             dockEditSlot = pos;
             dimOthers();
-            focusTile(Math.min(COLUMNS, n - 1));
+            focusTile(Math.min(defaultHomeCount, n - 1));
             Toast.makeText(this, R.string.dock_edit_pick_app, Toast.LENGTH_LONG).show();
         } else {
             dockEditAppKey = key;
@@ -1478,7 +1478,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 adapter.move(adapter.positionOf(slotKey), pos);
             });
             dockInSession.add(adapter.keyAt(slot));
-            if (pos >= COLUMNS) dockInSession.remove(slotKey);
+            if (pos >= defaultHomeCount) dockInSession.remove(slotKey);
         }
         endReorder();
         refocusAfterLayout(slot);
@@ -1509,7 +1509,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (movingKey != null) {
             return pos != RecyclerView.NO_POSITION && movingKey.equals(adapter.keyAt(pos)) ? 1f : 0.45f;
         }
-        if (dockEditSlot >= 0 && pos >= 0 && pos < COLUMNS && pos != dockEditSlot) return 0.45f;
+        if (dockEditSlot >= 0 && pos >= 0 && pos < defaultHomeCount && pos != dockEditSlot) return 0.45f;
         return 1f;
     }
 
@@ -1531,8 +1531,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // come back after the mode go after it (#499). With fill_dock true every dock slot holds an app anyway.
         int docked = -1;
         if (fillDockLeavesSlots) {
-            docked = DockSlots.dockCount(keys, COLUMNS, dockInSession);
-            keys = DockSlots.dockFirst(keys, COLUMNS, dockInSession);
+            docked = DockSlots.dockCount(keys, defaultHomeCount, dockInSession);
+            keys = DockSlots.dockFirst(keys, defaultHomeCount, dockInSession);
         }
         dockInSession = null;
         if (!keys.equals(before) || (fillDockLeavesSlots && docked != dockedAtStart)) {
@@ -1563,13 +1563,24 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // rtl_app_grid (Hebrew) mirrors the grid: position 0 is on the right, so Left moves towards the end.
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) to = rtlAppGrid ? from + 1 : from - 1;
         else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) to = rtlAppGrid ? from - 1 : from + 1;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) to = from - COLUMNS;
-        else if (from + COLUMNS < n) to = from + COLUMNS;
-        else to = from / COLUMNS < (n - 1) / COLUMNS ? n - 1 : from;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            if (from < defaultHomeCount) to = from;
+            else if (from - defaultHomeCount < COLUMNS) {
+                int col = from - defaultHomeCount;
+                to = Math.min(defaultHomeCount - 1,
+                        Math.max(0, Math.round((col + 0.5f) * defaultHomeCount / COLUMNS - 0.5f)));
+            } else to = from - COLUMNS;
+        } else if (from < defaultHomeCount) {
+            int col = Math.min(COLUMNS - 1,
+                    Math.max(0, Math.round((from + 0.5f) * COLUMNS / defaultHomeCount - 0.5f)));
+            to = Math.min(n - 1, defaultHomeCount + col);
+        } else if (from - defaultHomeCount + COLUMNS < n - defaultHomeCount) {
+            to = from + COLUMNS;
+        } else to = n - 1;
         if (to < 0 || to >= n || to == from) return;
         keepScroll(() -> adapter.move(from, to));
         // The owner carries this tile: where it lands decides whether it is in the dock, not dock_apps (#499).
-        if (to < COLUMNS) dockInSession.add(movingKey);
+        if (to < defaultHomeCount) dockInSession.add(movingKey);
         else dockInSession.remove(movingKey);
         refocusAfterLayout(to);
     }
@@ -2314,7 +2325,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 int drawerColumn = Math.min(COLUMNS - 1,
                         Math.max(0, Math.round((position + 0.5f) * COLUMNS / defaultHomeCount - 0.5f)));
                 target = defaultHomeCount + drawerColumn;
-                if (target >= count) return true;
+                target = Math.min(target, count - 1);
             } else {
                 int gridIndex = position - defaultHomeCount;
                 int lastRowStart = defaultHomeCount + ((count - defaultHomeCount - 1) / COLUMNS) * COLUMNS;
@@ -3353,7 +3364,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (200 * density));
         if (dockRow && position < adapter.movableCount()) {
-            boolean inDock = position < COLUMNS;
+            boolean inDock = position < defaultHomeCount;
             addSettingsMenuRow(rows, popup, inDock ? R.string.tile_replace_in_dock : R.string.tile_add_to_dock,
                     () -> startDockEditFor(key, inDock));
         }

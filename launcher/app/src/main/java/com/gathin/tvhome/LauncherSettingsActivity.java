@@ -11,6 +11,15 @@ import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
+import android.view.ViewGroup;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
+import android.widget.BaseAdapter;
+import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -210,40 +219,8 @@ public final class LauncherSettingsActivity extends Activity {
 
 
     private void chooseWallpaperFromTv() {
-        // Prefer ACTION_GET_CONTENT: this is an import operation, so the selected file is
-        // copied into launcher-private storage immediately. Some TV builds do not ship
-        // DocumentsUI, and FX File Explorer 9.x does not expose itself as a standard
-        // ACTION_OPEN_DOCUMENT provider/picker. Try ordinary content pickers first, then
-        // fall back to our own MediaStore list (which needs no external file-manager app).
-        Intent getContent = new Intent(Intent.ACTION_GET_CONTENT);
-        getContent.addCategory(Intent.CATEGORY_OPENABLE);
-        getContent.setType("*/*");
-        getContent.putExtra(Intent.EXTRA_MIME_TYPES,
-                new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
-        getContent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try {
-            if (getContent.resolveActivity(getPackageManager()) != null) {
-                startActivityForResult(getContent, REQUEST_TV_WALLPAPER);
-                return;
-            }
-        } catch (ActivityNotFoundException | SecurityException ignored) { }
-
-        // Keep SAF as a secondary route for firmware that has DocumentsUI but no GET_CONTENT
-        // handler. We import a copy, so a persistable grant is not required.
-        Intent openDocument = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        openDocument.addCategory(Intent.CATEGORY_OPENABLE);
-        openDocument.setType("*/*");
-        openDocument.putExtra(Intent.EXTRA_MIME_TYPES,
-                new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
-        openDocument.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try {
-            if (openDocument.resolveActivity(getPackageManager()) != null) {
-                startActivityForResult(openDocument, REQUEST_TV_WALLPAPER);
-                return;
-            }
-        } catch (ActivityNotFoundException | SecurityException ignored) { }
-
-        // Skyworth firmware without a picker reaches the launcher's built-in media browser.
+        // Use our own TV-focused browser instead of handing off to the phone-oriented
+        // system photo picker. This guarantees visible D-pad focus and a clear preview.
         showIndexedMediaPicker();
     }
 
@@ -273,11 +250,107 @@ public final class LauncherSettingsActivity extends Activity {
             Toast.makeText(this, R.string.wallpaper_picker_unavailable, Toast.LENGTH_LONG).show();
             return;
         }
-        new AlertDialog.Builder(this)
+        GridView grid = new GridView(this);
+        grid.setNumColumns(4);
+        grid.setHorizontalSpacing(dp(8));
+        grid.setVerticalSpacing(dp(10));
+        grid.setPadding(dp(12), dp(12), dp(12), dp(12));
+        grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+        grid.setSelector(android.R.color.transparent);
+        grid.setChoiceMode(GridView.CHOICE_MODE_NONE);
+        grid.setAdapter(new WallpaperMediaAdapter(uris, labels));
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.wallpaper_from_tv)
-                .setItems(labels.toArray(new String[0]), (dialog, which) -> importTvWallpaper(uris.get(which)))
+                .setView(grid)
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .create();
+        grid.setOnItemClickListener((parent, view, position, id) -> {
+            dialog.dismiss();
+            importTvWallpaper(uris.get(position));
+        });
+        dialog.setOnShowListener(ignored -> {
+            if (grid.getChildCount() > 0) grid.getChildAt(0).requestFocus();
+        });
+        dialog.show();
+        grid.requestFocus();
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    /** Thumbnail grid with an unmistakable focus frame for Android TV remotes. */
+    private final class WallpaperMediaAdapter extends BaseAdapter {
+        private final ArrayList<Uri> items;
+        private final ArrayList<String> names;
+        WallpaperMediaAdapter(ArrayList<Uri> items, ArrayList<String> names) {
+            this.items = items;
+            this.names = names;
+        }
+        @Override public int getCount() { return items.size(); }
+        @Override public Object getItem(int position) { return items.get(position); }
+        @Override public long getItemId(int position) { return position; }
+        @Override public View getView(int position, View recycled, ViewGroup parent) {
+            LinearLayout cell;
+            ImageView preview;
+            TextView caption;
+            if (recycled instanceof LinearLayout) {
+                cell = (LinearLayout) recycled;
+                preview = (ImageView) cell.getChildAt(0);
+                caption = (TextView) cell.getChildAt(1);
+            } else {
+                cell = new LinearLayout(LauncherSettingsActivity.this);
+                cell.setOrientation(LinearLayout.VERTICAL);
+                cell.setGravity(android.view.Gravity.CENTER);
+                cell.setFocusable(true);
+                cell.setFocusableInTouchMode(true);
+                cell.setPadding(dp(5), dp(5), dp(5), dp(5));
+                GradientDrawable normal = new GradientDrawable();
+                normal.setColor(Color.rgb(35, 42, 70));
+                normal.setCornerRadius(dp(7));
+                cell.setBackground(normal);
+                preview = new ImageView(LauncherSettingsActivity.this);
+                preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                cell.addView(preview, new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(86)));
+                caption = new TextView(LauncherSettingsActivity.this);
+                caption.setTextColor(Color.WHITE);
+                caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+                caption.setSingleLine(true);
+                caption.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+                caption.setGravity(android.view.Gravity.CENTER);
+                LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(27));
+                cell.addView(caption, cp);
+                cell.setOnFocusChangeListener((v, focused) -> {
+                    v.setScaleX(focused ? 1.07f : 1f);
+                    v.setScaleY(focused ? 1.07f : 1f);
+                    GradientDrawable bg = new GradientDrawable();
+                    bg.setColor(focused ? Color.rgb(65, 105, 190) : Color.rgb(35, 42, 70));
+                    bg.setCornerRadius(dp(7));
+                    bg.setStroke(dp(focused ? 3 : 1),
+                            focused ? Color.WHITE : Color.rgb(90, 100, 130));
+                    v.setBackground(bg);
+                });
+            }
+            Uri uri = items.get(position);
+            try {
+                Bitmap bitmap;
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    bitmap = getContentResolver().loadThumbnail(uri,
+                            new android.util.Size(320, 200), null);
+                } else {
+                    try (InputStream in = getContentResolver().openInputStream(uri)) {
+                        bitmap = BitmapFactory.decodeStream(in);
+                    }
+                }
+                preview.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                preview.setImageResource(android.R.drawable.ic_menu_gallery);
+            }
+            caption.setText(names.get(position));
+            return cell;
+        }
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {

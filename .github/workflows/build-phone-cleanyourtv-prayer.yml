@@ -50,6 +50,14 @@ jobs:
       - name: Patch phone media and scheduled-wallpaper support
         run: python3 scripts/patch-phone-gif.py
 
+      # Keep one stable launcher signing identity across CI runs. The cache is restored
+      # before Gradle configures signingConfigs.debug and saved after the first successful build.
+      - name: Restore persistent launcher signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: cleanyourtv-launcher-debug-signing-v1
+
       - name: Build modified CleanYourTV launcher
         working-directory: launcher
         run: |

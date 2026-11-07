@@ -188,6 +188,16 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
         refresh();
+        // Accept a wallpaper shared from a TV file manager such as FX File Explorer.
+        if (Intent.ACTION_SEND.equals(getIntent().getAction())) {
+            Uri shared = getIntent().getParcelableExtra(Intent.EXTRA_STREAM);
+            if (shared == null && getIntent().getClipData() != null
+                    && getIntent().getClipData().getItemCount() > 0) {
+                shared = getIntent().getClipData().getItemAt(0).getUri();
+            }
+            if (shared != null) importTvWallpaper(shared);
+            else Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
+        }
         if (config.launcherSettingsButton) reorderChoice.requestFocus();
         else columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
     }

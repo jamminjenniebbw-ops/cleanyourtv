@@ -108,6 +108,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     static final String ACTION_VIEW_INPUTS = "com.android.tv.action.VIEW_INPUTS";
     /** Tiles per row and dock slots (res/values/config.xml, columns). Set in onCreate. */
     static int COLUMNS = 4;
+    /** Compact first-row count, independent of the app drawer's COLUMNS setting. */
+    private int defaultHomeCount = 3;
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
@@ -405,6 +407,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         reducedMotion = cfg.reducedMotion;
         dockRow = cfg.dockRow;
         singleRow = cfg.singleRow;
+        int homeCount = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getInt("default_home_apps", 3);
+        defaultHomeCount = singleRow ? COLUMNS : (homeCount == 5 ? 5 : 3);
         focusOvershoot = cfg.focusOvershoot;
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
@@ -461,7 +465,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (cinematic) setUpCinematicShelf(cfg.cinematicScrim);
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
         // still follows the dock.
-        if (!cfg.dockTitle) hero.setVisibility(View.GONE);
+        // The default home has no app-name shelf above its compact dock.
+        hero.setVisibility(View.GONE);
         heroName = findViewById(R.id.heroName);
         heroName.setTextSize(39f);
         greeting = findViewById(R.id.greeting);
@@ -522,7 +527,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
         // Mirror only the app grid; the header and other locales keep their own layouts.
         // single_row: one span laid out sideways, so the same adapter, glass and dock band serve a scrolling row.
-        grid.setLayoutManager(new GridLayoutManager(this, singleRow ? 1 : COLUMNS,
+        grid.setLayoutManager(new GridLayoutManager(this, singleRow ? 1 : COLUMNS * defaultHomeCount,
                 singleRow ? RecyclerView.HORIZONTAL : RecyclerView.VERTICAL, false) {
             @Override
             protected boolean isLayoutRTL() {
@@ -557,7 +562,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     else parent.smoothScrollBy(dx, 0);
                     return true;
                 }
-                if (dockRow && getPosition(child) < COLUMNS) return false;
+                if (dockRow && getPosition(child) < defaultHomeCount) return false;
                 int top = child.getTop() + rect.top;
                 int bottom = top + rect.height();
                 // A row already fully on screen stays put, even inside the bottom padding (the last row
@@ -575,7 +580,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         });
         ((GridLayoutManager) grid.getLayoutManager()).setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
-            @Override public int getSpanSize(int position) { return !singleRow && adapter != null && adapter.isLibraryAt(position) ? COLUMNS : 1; }
+            @Override public int getSpanSize(int position) {
+                if (singleRow) return 1;
+                if (adapter != null && adapter.isLibraryAt(position)) return COLUMNS * defaultHomeCount;
+                return position < defaultHomeCount ? COLUMNS : defaultHomeCount;
+            }
         });
         grid.setHasFixedSize(true);
         grid.setItemAnimator(null);
@@ -591,7 +600,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public void onChildViewDetachedFromWindow(@NonNull View v) {
             }
         });
-        if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.dockBand,
+        if (dockRow) grid.addItemDecoration(new DockDecoration(defaultHomeCount, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.dockBand,
                 singleRow, cfg.dockBandAll));
         if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
@@ -599,7 +608,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             grid.setLayoutAnimation(new LayoutAnimationController(
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
-        adapter = new AppAdapter(this, this, COLUMNS, cfg);
+        adapter = new AppAdapter(this, this, defaultHomeCount, COLUMNS, cfg);
         dockApps = cfg.dockApps;
         fillDockLeavesSlots = !cfg.fillDock;
         Order savedOrder = Order.load(Order.file(this));
@@ -636,7 +645,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // into the initial viewport. Lower the dock by up to half a tile, while keeping the
             // shift proportional to the actual tile size on different TV resolutions.
             if (MainActivity.this.dockRow && !singleRow) {
-                want += Math.min(itemH / 2, (int) (40 * density));
+                // Centre the compact default-home row vertically; the app drawer retains its own grid sizing.
+                int homeCell = inner / Math.max(1, defaultHomeCount);
+                int homeTileW = Math.min(Math.round(128 * density), Math.max(Math.round(80 * density), homeCell - Math.round(20 * density)));
+                int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(homeTileW), density);
+                want = Math.max(0, (h - homeItemH) / 2);
             }
             if (grid.getPaddingTop() != want) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
@@ -977,12 +990,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 reloadApps(true);
                 break;
             case REFOCUS:
-                // The same tiles: only the focus goes back, as after a rebuild, without replaying the entrance.
                 tilesReady = false;
                 reloadApps(true, false, false);
                 break;
             default:
                 break;
+        }
+        // The Home intent always opens the default first screen, even if the previous session left
+        // focus in the app drawer. Down is the explicit transition into the rest of the apps.
+        if (getIntent() != null && getIntent().hasCategory(Intent.CATEGORY_HOME)) {
+            lastFocused = 0;
+            lastFocusedKey = adapter.keyAt(0);
+            grid.post(() -> { if (!isFinishing() && appLibrary == null && adapter.appCount() > 0) focusTile(0); });
         }
         if (openLiveTvAfterBoot()) return;
         updateGreeting();
@@ -1671,7 +1690,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         glassTargetY = y;
         // Cinematic shelf: the highlight glows in the dock app's colour, plain white in the grid (and on the dock with
         // cinematic_white_focus). app_glow: every tile. In a single row every tile is the dock's kind.
-        boolean coloured = (appGlow || cinematic && !cinematicWhiteFocus && (singleRow || position < COLUMNS)) && !festive;
+        boolean coloured = (appGlow || cinematic && !cinematicWhiteFocus && (singleRow || position < defaultHomeCount)) && !festive;
         int accent = coloured ? adapter.ambientColorAt(position) : 0;
         if ((cinematic || appGlow) && !festive && accent != glassAccent) {
             glassAccent = accent;
@@ -1695,7 +1714,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             springY.animateToFinalPosition(y - glassScrollShift);
         }
         View item = (View) card.getParent();
-        if (dockRow && (singleRow || position < COLUMNS)) {
+        if (dockRow && (singleRow || position < defaultHomeCount)) {
             // Dock: park it at the bottom of the screen and show the top shelf for this app. In a single row
             // every tile is in the dock's row, which never scrolls vertically.
             int decoratedTop = item.getTop() - (int) (6 * density);
@@ -1707,7 +1726,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 if (!animations || reducedMotion) grid.scrollBy(0, dy);
                 else grid.smoothScrollBy(0, dy);
             }
-            showHero(position, scroll ? r.top - dy : r.top);
+            // The default-home layout intentionally has no focused-app name above the dock.
+            showGlowOnly(position);
         } else {
             // Below the dock (or in a plain grid) the glow follows the tile without the big name; letting it
             // fade out left the grid on plain black.
@@ -2254,8 +2274,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int count = adapter.appCount();
         int target;
         if (singleRow) {
-            // One row: Up leaves for the top bar, Down has nowhere to go, and Left/Right walk the whole row,
-            // stopping at its two ends (the default focus search scrolls the row to the next tile).
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) return true;
             boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
@@ -2266,32 +2284,48 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             return !forward && position == 0;
         }
-        // Horizontal: swallow the key at a row's ends so focus never wraps to the next row or
-        // escapes up into the top bar. Mid-row moves fall through to the default focus search.
+        boolean homeRow = position < defaultHomeCount;
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
             if (forward && position == adapter.focusablePosition(count - 1) && adapter.isLibraryAt(count)) {
                 focusLibrary();
                 return true;
             }
-            // In the dock, the last app is the row's end: the empty slots after it take no focus.
-            int rowCount = position < COLUMNS ? Math.min(count, adapter.dockFilled()) : count;
-            return GridNavigation.atHorizontalEdge(position, rowCount, COLUMNS,
-                    rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
+            if (homeRow) {
+                return GridNavigation.atHorizontalEdge(position, Math.min(count, adapter.dockFilled()),
+                        defaultHomeCount, rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
+            }
+            return GridNavigation.atHorizontalEdge(position - defaultHomeCount, count - defaultHomeCount,
+                    COLUMNS, rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
-            target = position - COLUMNS;
-        } else {
-            int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
-            if (position >= lastRowStart) {
-                if (adapter.isLibraryAt(count)) focusLibrary();
-                return true;
+            if (homeRow) return false;
+            int gridIndex = position - defaultHomeCount;
+            if (gridIndex < COLUMNS) {
+                // Map the app-drawer column back to the nearest tile in the shorter centred home row.
+                target = Math.min(defaultHomeCount - 1,
+                        Math.max(0, Math.round(((gridIndex % COLUMNS) + 0.5f) * defaultHomeCount / COLUMNS - 0.5f)));
+            } else {
+                target = position - COLUMNS;
             }
-            target = Math.min(position + COLUMNS, count - 1);
+        } else {
+            if (homeRow) {
+                // The home row is centred; map each home tile to its nearest column in the app drawer.
+                int drawerColumn = Math.min(COLUMNS - 1,
+                        Math.max(0, Math.round((position + 0.5f) * COLUMNS / defaultHomeCount - 0.5f)));
+                target = defaultHomeCount + drawerColumn;
+                if (target >= count) return true;
+            } else {
+                int gridIndex = position - defaultHomeCount;
+                int lastRowStart = defaultHomeCount + ((count - defaultHomeCount - 1) / COLUMNS) * COLUMNS;
+                if (position >= lastRowStart) {
+                    if (adapter.isLibraryAt(count)) focusLibrary();
+                    return true;
+                }
+                target = Math.min(position + COLUMNS, count - 1);
+            }
         }
         focusTile(target);
-        // The default focus search clicks for Left/Right; Up/Down are handled here, so click for them too.
         grid.playSoundEffect(keyCode == KeyEvent.KEYCODE_DPAD_UP
                 ? SoundEffectConstants.NAVIGATION_UP : SoundEffectConstants.NAVIGATION_DOWN);
         return true;

@@ -55,6 +55,8 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease -PlauncherApplicationId=com.gathin.tvhome
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/out/CleanYourTV-TV-Launcher.apk"
           cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/phone/android/platform/src/main/assets/bundled/cleanyourtv-launcher.apk"
 
       - name: Build matching TV curtain with the same debug signing key

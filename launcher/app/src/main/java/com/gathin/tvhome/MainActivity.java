@@ -652,7 +652,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // into the initial viewport. Lower the dock by up to half a tile, while keeping the
             // shift proportional to the actual tile size on different TV resolutions.
             if (adapter != null && adapter.isDefaultHomeMode() && !singleRow) {
+                // First layout can measure the RecyclerView before its final width has propagated to the
+                // GridLayoutManager. Apply once more on the next frame, after this layout pass, so the
+                // Home row's three/five compact cells are grouped from the very first frame (not only
+                // after a Home/drawer projection switch or a later focus move).
                 applyDefaultHomeGridPadding(true);
+                grid.post(() -> {
+                    if (grid != null && adapter != null && adapter.isDefaultHomeMode() && !singleRow) {
+                        applyDefaultHomeGridPadding(true);
+                    }
+                });
             } else if (adapter != null && !adapter.isDefaultHomeMode()) {
                 want = Math.round(18 * density);
                 if (grid.getPaddingLeft() != gridBasePaddingLeft || grid.getPaddingRight() != gridBasePaddingRight || grid.getPaddingTop() != want) {

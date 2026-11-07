@@ -130,7 +130,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="video/mp4" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <!-- Some file managers share media with a generic MIME type; the importer
+                 still validates the actual extension before accepting the file. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
         <!-- The system input switcher (com.android.tv.action.VIEW_INPUTS), which is what the remote's Input

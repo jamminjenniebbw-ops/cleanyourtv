@@ -49,6 +49,7 @@
     <string name="launcher_settings">Launcher settings</string>
     <string name="native_settings">Native settings</string>
     <string name="columns_label">Apps per row</string>
+    <string name="default_home_apps_label">Apps on default home screen</string>
     <string name="rows_below_dock_label">Rows below dock</string>
     <string name="dock_opacity_label">Dock band opacity</string>
     <string name="prayer_times_state">Prayer schedule: %1$s</string>

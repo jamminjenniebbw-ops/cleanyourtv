@@ -35,9 +35,7 @@
     <string name="wallpaper_state">Wallpaper: %1$s</string>
     <string name="wallpaper_none">Tidak ada</string>
     <string name="wallpaper_applied">Wallpaper diubah</string>
-    <string name="wallpaper_theme_default">Bawaan tema</string>
-    <string name="scheduled_wallpaper_state">Latar belakang terjadwal: %1$s</string>
-    <string name="animations_state">Animasi: %1$s</string>
+    <string name="wallpaper_theme_default">Bawaan tema</string><string name="animations_state">Animasi: %1$s</string>
     <string name="advanced_effects">Efek Lanjut</string>
     <string name="advanced_effects_state">Efek lanjut: %1$s</string>
     <string name="open_on_start_label">Buka saat mulai</string>

@@ -123,7 +123,7 @@ public final class LauncherSettingsActivity extends Activity {
             reverseRow(dockChoices);
         }
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
-        wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
+        wallpaperChoice.setOnClickListener(v -> showUnifiedWallpaperPicker());
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
             animations = !animations;
@@ -491,45 +491,126 @@ public final class LauncherSettingsActivity extends Activity {
             "IMG_20261107_021638.jpg", "IMG_20261107_021706.jpg"
     };
 
-    private void showBuiltinWallpaperPicker() {
-        String[] labels = new String[BUILTIN_WALLPAPERS.length];
-        for (int i = 0; i < labels.length; i++) labels[i] = getString(R.string.builtin_wallpaper_item, i + 1);
-        String selected = choices.getString("builtin_wallpaper_choice", null);
-        int checked = -1;
-        for (int i = 0; i < BUILTIN_WALLPAPERS.length; i++) {
-            if (BUILTIN_WALLPAPERS[i].equals(selected)) checked = i;
-        }
+    private void showUnifiedWallpaperPicker() {
         new AlertDialog.Builder(this)
-                .setTitle(R.string.builtin_wallpaper_title)
-                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
-                    dialog.dismiss();
-                    File target = new File(getFilesDir(), "builtin_wallpaper.jpg");
-                    File temp = new File(getFilesDir(), "builtin_wallpaper.importing");
-                    try (InputStream in = getAssets().open("builtin_wallpapers/" + BUILTIN_WALLPAPERS[which]);
-                         FileOutputStream out = new FileOutputStream(temp)) {
-                        byte[] buffer = new byte[32768];
-                        int n;
-                        while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
-                        out.getFD().sync();
-                        if (target.exists() && !target.delete()) throw new java.io.IOException("Cannot replace wallpaper");
-                        if (!temp.renameTo(target)) throw new java.io.IOException("Cannot install wallpaper");
-                        choices.edit().putString("builtin_wallpaper_choice", BUILTIN_WALLPAPERS[which])
-                                .remove(Config.WALLPAPER_CHOICE_KEY).remove("tv_storage_wallpaper_choice").apply();
+                .setTitle(R.string.wallpaper_label)
+                .setItems(new CharSequence[]{
+                        getString(R.string.builtin_wallpaper_title),
+                        getString(R.string.wallpaper_theme_default),
+                        getString(R.string.wallpaper_from_theme_collection)
+                }, (dialog, which) -> {
+                    if (which == 0) showBuiltinWallpaperPicker();
+                    else if (which == 1) {
+                        choices.edit().remove(Config.WALLPAPER_CHOICE_KEY)
+                                .remove("builtin_wallpaper_choice")
+                                .remove("tv_storage_wallpaper_choice").apply();
                         changed();
                         refresh();
                         Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
-                    } catch (Exception e) {
-                        temp.delete();
-                        Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
-                    }
-                })
-                .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
-                    choices.edit().remove("builtin_wallpaper_choice").remove("tv_storage_wallpaper_choice").apply();
-                    changed();
-                    refresh();
+                    } else showWallpaperPicker();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void showBuiltinWallpaperPicker() {
+        GridView grid = new GridView(this);
+        grid.setNumColumns(2);
+        grid.setHorizontalSpacing(dp(12));
+        grid.setVerticalSpacing(dp(12));
+        grid.setPadding(dp(12), dp(12), dp(12), dp(12));
+        grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+        grid.setSelector(android.R.color.transparent);
+        grid.setFocusable(true);
+        grid.setFocusableInTouchMode(false);
+        final int selected = java.util.Arrays.asList(BUILTIN_WALLPAPERS)
+                .indexOf(choices.getString("builtin_wallpaper_choice", null));
+        BaseAdapter adapter = new BaseAdapter() {
+            @Override public int getCount() { return BUILTIN_WALLPAPERS.length; }
+            @Override public Object getItem(int position) { return BUILTIN_WALLPAPERS[position]; }
+            @Override public long getItemId(int position) { return position; }
+            @Override public View getView(int position, View recycled, ViewGroup parent) {
+                LinearLayout card;
+                ImageView preview;
+                TextView caption;
+                if (recycled instanceof LinearLayout) {
+                    card = (LinearLayout) recycled;
+                    preview = (ImageView) card.getChildAt(0);
+                    caption = (TextView) card.getChildAt(1);
+                } else {
+                    card = new LinearLayout(LauncherSettingsActivity.this);
+                    card.setOrientation(LinearLayout.VERTICAL);
+                    card.setGravity(android.view.Gravity.CENTER);
+                    card.setFocusable(false);
+                    card.setPadding(dp(6), dp(6), dp(6), dp(6));
+                    GradientDrawable normal = new GradientDrawable();
+                    normal.setColor(Color.rgb(35, 42, 70));
+                    normal.setCornerRadius(dp(8));
+                    normal.setStroke(dp(1), Color.rgb(90, 100, 130));
+                    GradientDrawable focused = new GradientDrawable();
+                    focused.setColor(Color.rgb(65, 105, 190));
+                    focused.setCornerRadius(dp(8));
+                    focused.setStroke(dp(3), Color.WHITE);
+                    StateListDrawable states = new StateListDrawable();
+                    states.addState(new int[]{android.R.attr.state_selected}, focused);
+                    states.addState(new int[]{android.R.attr.state_focused}, focused);
+                    states.addState(new int[]{}, normal);
+                    card.setBackground(states);
+                    preview = new ImageView(LauncherSettingsActivity.this);
+                    preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    card.addView(preview, new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, dp(112)));
+                    caption = new TextView(LauncherSettingsActivity.this);
+                    caption.setTextColor(Color.WHITE);
+                    caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                    caption.setGravity(android.view.Gravity.CENTER);
+                    caption.setPadding(0, dp(7), 0, dp(4));
+                    card.addView(caption);
+                }
+                try (InputStream in = getAssets().open("builtin_wallpapers/" + BUILTIN_WALLPAPERS[position])) {
+                    Bitmap bitmap = BitmapFactory.decodeStream(in);
+                    preview.setImageBitmap(bitmap);
+                } catch (Exception ignored) {
+                    preview.setImageDrawable(null);
+                }
+                caption.setText(getString(R.string.builtin_wallpaper_item, position + 1));
+                card.setSelected(position == selected);
+                return card;
+            }
+        };
+        grid.setAdapter(adapter);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.builtin_wallpaper_title)
+                .setView(grid)
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+        grid.setOnItemClickListener((parent, view, position, id) -> {
+            dialog.dismiss();
+            File target = new File(getFilesDir(), "builtin_wallpaper.jpg");
+            File temp = new File(getFilesDir(), "builtin_wallpaper.importing");
+            try (InputStream in = getAssets().open("builtin_wallpapers/" + BUILTIN_WALLPAPERS[position]);
+                 FileOutputStream out = new FileOutputStream(temp)) {
+                byte[] buffer = new byte[32768];
+                int n;
+                while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                out.getFD().sync();
+                if (target.exists() && !target.delete()) throw new java.io.IOException("Cannot replace wallpaper");
+                if (!temp.renameTo(target)) throw new java.io.IOException("Cannot install wallpaper");
+                choices.edit().putString("builtin_wallpaper_choice", BUILTIN_WALLPAPERS[position])
+                        .remove(Config.WALLPAPER_CHOICE_KEY).remove("tv_storage_wallpaper_choice").apply();
+                changed();
+                refresh();
+                Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                temp.delete();
+                Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
+            }
+        });
+        dialog.setOnShowListener(ignored -> grid.post(() -> {
+            grid.requestFocus();
+            grid.setSelection(Math.max(0, selected));
+        }));
+        dialog.show();
     }
 
     private void showWallpaperPicker() {

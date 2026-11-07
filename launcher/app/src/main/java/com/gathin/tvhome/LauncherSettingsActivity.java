@@ -269,7 +269,6 @@ public final class LauncherSettingsActivity extends Activity {
         grid.setSelector(android.R.color.transparent);
         grid.setChoiceMode(GridView.CHOICE_MODE_NONE);
         grid.setFocusable(true);
-        grid.setItemsCanFocus(true);
         grid.setAdapter(new WallpaperMediaAdapter(uris, labels));
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.wallpaper_from_tv)

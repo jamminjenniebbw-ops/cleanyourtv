@@ -179,6 +179,7 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice")
+                    .remove("tv_storage_wallpaper_choice")
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
                     .remove("scheduled_wallpaper_enabled").commit();
             scheduledWallpaperEnabled = false;
@@ -526,7 +527,7 @@ public final class LauncherSettingsActivity extends Activity {
                         if (target.exists() && !target.delete()) throw new java.io.IOException("Cannot replace wallpaper");
                         if (!temp.renameTo(target)) throw new java.io.IOException("Cannot install wallpaper");
                         choices.edit().putString("builtin_wallpaper_choice", BUILTIN_WALLPAPERS[which])
-                                .remove(Config.WALLPAPER_CHOICE_KEY).apply();
+                                .remove(Config.WALLPAPER_CHOICE_KEY).remove("tv_storage_wallpaper_choice").apply();
                         changed();
                         refresh();
                         Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
@@ -536,7 +537,7 @@ public final class LauncherSettingsActivity extends Activity {
                     }
                 })
                 .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
-                    choices.edit().remove("builtin_wallpaper_choice").apply();
+                    choices.edit().remove("builtin_wallpaper_choice").remove("tv_storage_wallpaper_choice").apply();
                     changed();
                     refresh();
                 })
@@ -561,7 +562,7 @@ public final class LauncherSettingsActivity extends Activity {
                 .setTitle(R.string.wallpaper_label)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
-                    choices.edit().remove("builtin_wallpaper_choice").apply();
+                    choices.edit().remove("builtin_wallpaper_choice").remove("tv_storage_wallpaper_choice").apply();
                     if (which == images.size()) {
                         choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
                     } else {
@@ -573,7 +574,8 @@ public final class LauncherSettingsActivity extends Activity {
                     refresh();
                 })
                 .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
-                    choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice").apply();
+                    choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice")
+                            .remove("tv_storage_wallpaper_choice").apply();
                     changed();
                     refresh();
                 })

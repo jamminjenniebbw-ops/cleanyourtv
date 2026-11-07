@@ -230,7 +230,17 @@ public final class LauncherSettingsActivity extends Activity {
      * additional app or network connection.
      */
     private void showIndexedMediaPicker() {
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            boolean imagesGranted = checkSelfPermission("android.permission.READ_MEDIA_IMAGES") == PackageManager.PERMISSION_GRANTED;
+            boolean videosGranted = checkSelfPermission("android.permission.READ_MEDIA_VIDEO") == PackageManager.PERMISSION_GRANTED;
+            boolean selectedGranted = checkSelfPermission("android.permission.READ_MEDIA_VISUAL_USER_SELECTED") == PackageManager.PERMISSION_GRANTED;
+            if ((!imagesGranted || !videosGranted) && !selectedGranted) {
+                requestPermissions(new String[]{"android.permission.READ_MEDIA_IMAGES",
+                        "android.permission.READ_MEDIA_VIDEO",
+                        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"}, REQUEST_MEDIA_PERMISSION);
+                return;
+            }
+        } else if (android.os.Build.VERSION.SDK_INT >= 33) {
             boolean imagesGranted = checkSelfPermission("android.permission.READ_MEDIA_IMAGES") == PackageManager.PERMISSION_GRANTED;
             boolean videosGranted = checkSelfPermission("android.permission.READ_MEDIA_VIDEO") == PackageManager.PERMISSION_GRANTED;
             if (!imagesGranted || !videosGranted) {
@@ -258,6 +268,8 @@ public final class LauncherSettingsActivity extends Activity {
         grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         grid.setSelector(android.R.color.transparent);
         grid.setChoiceMode(GridView.CHOICE_MODE_NONE);
+        grid.setFocusable(true);
+        grid.setItemsCanFocus(true);
         grid.setAdapter(new WallpaperMediaAdapter(uris, labels));
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.wallpaper_from_tv)
@@ -268,11 +280,11 @@ public final class LauncherSettingsActivity extends Activity {
             dialog.dismiss();
             importTvWallpaper(uris.get(position));
         });
-        dialog.setOnShowListener(ignored -> {
+        dialog.setOnShowListener(ignored -> grid.post(() -> {
+            grid.setSelection(0);
             if (grid.getChildCount() > 0) grid.getChildAt(0).requestFocus();
-        });
+        }));
         dialog.show();
-        grid.requestFocus();
     }
 
     private int dp(int value) {

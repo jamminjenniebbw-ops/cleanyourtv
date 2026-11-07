@@ -221,6 +221,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
     private final List<Entry> items = new ArrayList<>();
+    /** Complete ordered app list; items is the current home-only or app-drawer projection. */
+    private final List<Entry> allItems = new ArrayList<>();
+    private boolean defaultHomeMode = true;
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this(ctx, listener, dockSize, dockSize, cfg);
@@ -344,8 +347,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
                     null, null, null, 0));
         }
-        items.clear();
-        items.addAll(fresh);
+        allItems.clear();
+        allItems.addAll(fresh);
+        applyDisplayMode();
         notifyDataSetChanged();
     }
 
@@ -385,6 +389,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Lets go of every tile and its artwork (Home is in the background and memory is short). */
     void clear() {
         items.clear();
+        allItems.clear();
         notifyDataSetChanged();
     }
 
@@ -463,9 +468,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         int normalWidth = tileWidthPx(inner, parent.getHeight(), gridColumns, rowsBelowDock, dockTitle, dockRow, density);
         int tileWidth;
-        if (!singleRow && position < dockSize) {
-            int cell = inner / Math.max(1, dockSize);
-            tileWidth = Math.min(Math.round(128 * density), Math.max(Math.round(80 * density), cell - Math.round(20 * density)));
+        if (defaultHomeMode && !singleRow && position < dockSize) {
+            // The default homescreen is a compact, tightly grouped row, not a miniature full-width dock.
+            tileWidth = Math.round(68 * density);
         } else {
             tileWidth = normalWidth;
         }
@@ -486,7 +491,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageView icon = item.findViewById(R.id.icon);
         FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
         int iconSize = uniformTiles ? Math.round(tileHeight * ICON_SHARE)
-                : Math.round((!singleRow && position < dockSize ? 36 : 48) * density);
+                : Math.round((defaultHomeMode && !singleRow && position < dockSize ? 24 : 48) * density);
         if (iconLp.width != iconSize || iconLp.height != iconSize) {
             iconLp.width = iconLp.height = iconSize;
             if (uniformTiles) iconLp.bottomMargin = 0;
@@ -601,12 +606,30 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     int appCount() { return items.size(); }
 
+    boolean isDefaultHomeMode() { return defaultHomeMode; }
+
+    void setDefaultHomeMode(boolean home) {
+        if (defaultHomeMode == home) return;
+        defaultHomeMode = home;
+        applyDisplayMode();
+        notifyDataSetChanged();
+    }
+
+    private void applyDisplayMode() {
+        items.clear();
+        if (defaultHomeMode) {
+            items.addAll(allItems.subList(0, Math.min(dockSize, allItems.size())));
+        } else {
+            items.addAll(allItems.subList(Math.min(dockSize, allItems.size()), allItems.size()));
+        }
+    }
+
     boolean isLibraryAt(int position) { return showLibrary && position == items.size(); }
 
     @Override public int getItemViewType(int position) { return isLibraryAt(position) ? 1 : 0; }
 
     boolean containsPackage(String pkg) {
-        for (Entry entry : items) if (entry.pkg.equals(pkg)) return true;
+        for (Entry entry : allItems) if (entry.pkg.equals(pkg)) return true;
         return false;
     }
 
@@ -684,7 +707,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Dock slots that hold an app: the whole dock unless some slots are empty. */
     int dockFilled() {
-        return emptySlots > 0 ? docked : dockSize;
+        return defaultHomeMode ? (emptySlots > 0 ? docked : dockSize) : 0;
     }
 
     /** A position focus can land on: an empty dock slot gives the last dock app. */

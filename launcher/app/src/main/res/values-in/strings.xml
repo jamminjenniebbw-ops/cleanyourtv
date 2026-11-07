@@ -31,6 +31,8 @@
     <string name="native_settings">Setelan pabrikan</string>
     <string name="columns_label">App per baris</string>
     <string name="default_home_apps_label">Jumlah aplikasi di homescreen default</string>
+    <string name="default_home_apps_title">Pilih jumlah aplikasi di homescreen default</string>
+    <string name="default_home_apps_state">Jumlah aplikasi homescreen default: %1$d</string>
     <string name="dock_opacity_label">Opasitas pita dock</string>
     <string name="rows_below_dock_label">Baris di bawah dock</string>
     <string name="wallpaper_label">Wallpaper</string>

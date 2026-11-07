@@ -593,7 +593,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return 1;
             }
         });
-        // The Home/drawer projection changes the RecyclerView's own width; it must re-measure with its parent.\n        grid.setHasFixedSize(false);
+        // The Home/drawer projection changes the RecyclerView's own width; it must re-measure with its parent.
+        grid.setHasFixedSize(false);
         grid.setItemAnimator(null);
         // Tiles that scroll out while one is carried come back from the view cache without a rebind; set their
         // dimming again whenever one attaches, so none stays dim after the drop.
@@ -1013,7 +1014,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         restartIdleClock();
         promptsPaused = false;
-        if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory\n        if (adapter != null && adapter.isDefaultHomeMode()) grid.post(this::enforceDefaultHomeViewport);
+        if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
+        if (adapter != null && adapter.isDefaultHomeMode()) grid.post(this::enforceDefaultHomeViewport);
         switch (tileRefresh.onResume(packagesChangedSinceRebuild())) {
             case REBUILD:
                 tilesReady = false;
@@ -2364,7 +2366,25 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * This must be done explicitly when the projection changes: a RecyclerView layout-size
      * listener is not guaranteed to run when only the adapter and span count change.
      */
-    private void enforceDefaultHomeViewport() {\n        if (grid == null || adapter == null || !adapter.isDefaultHomeMode() || singleRow\n                || isFinishing() || grid.getParent() == null) return;\n        ((GridLayoutManager) grid.getLayoutManager()).setSpanCount(defaultHomeCount);\n        applyDefaultHomeGridPadding(true);\n        grid.requestLayout();\n        // A second pass after RecyclerView has consumed the new LayoutParams avoids retaining\n        // the old full-width span geometry on devices that defer child measurement.\n        grid.postOnAnimation(() -> {\n            if (grid != null && adapter != null && adapter.isDefaultHomeMode() && !singleRow) {\n                ((GridLayoutManager) grid.getLayoutManager()).setSpanCount(defaultHomeCount);\n                applyDefaultHomeGridPadding(true);\n                grid.requestLayout();\n                refitGlass();\n            }\n        });\n    }\n\n    private void applyDefaultHomeGridPadding(boolean home) {
+    private void enforceDefaultHomeViewport() {
+        if (grid == null || adapter == null || !adapter.isDefaultHomeMode() || singleRow
+                || isFinishing() || grid.getParent() == null) return;
+        ((GridLayoutManager) grid.getLayoutManager()).setSpanCount(defaultHomeCount);
+        applyDefaultHomeGridPadding(true);
+        grid.requestLayout();
+        // A second pass after RecyclerView has consumed the new LayoutParams avoids retaining
+        // the old full-width span geometry on devices that defer child measurement.
+        grid.postOnAnimation(() -> {
+            if (grid != null && adapter != null && adapter.isDefaultHomeMode() && !singleRow) {
+                ((GridLayoutManager) grid.getLayoutManager()).setSpanCount(defaultHomeCount);
+                applyDefaultHomeGridPadding(true);
+                grid.requestLayout();
+                refitGlass();
+            }
+        });
+    }
+
+    private void applyDefaultHomeGridPadding(boolean home) {
         if (grid == null) return;
         if (home && !singleRow) {
             float d = density;

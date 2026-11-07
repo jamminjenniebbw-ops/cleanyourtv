@@ -648,7 +648,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // Centre the compact default-home row vertically; the app drawer retains its own grid sizing.
                 int homeCell = inner / Math.max(1, defaultHomeCount);
                 int homeTileW = Math.min(Math.round(128 * density), Math.max(Math.round(80 * density), homeCell - Math.round(20 * density)));
-                int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(homeTileW), density);
+                int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(homeTileW), density)
+                        + Math.round(AppAdapter.DOCK_EXTRA_DP * density);
                 want = Math.max(0, (h - homeItemH) / 2);
             }
             if (grid.getPaddingTop() != want) {

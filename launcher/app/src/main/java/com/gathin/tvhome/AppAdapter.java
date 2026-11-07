@@ -470,15 +470,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             nameLp.topMargin = nameTop;
             holder.name.setLayoutParams(nameLp);
         }
-        if (uniformTiles) {
-            ImageView icon = item.findViewById(R.id.icon);
-            FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
-            int iconSize = Math.round(tileHeight * ICON_SHARE);
-            if (iconLp.width != iconSize || iconLp.height != iconSize) {
-                iconLp.width = iconLp.height = iconSize;
-                iconLp.bottomMargin = 0;
-                icon.setLayoutParams(iconLp);
-            }
+        ImageView icon = item.findViewById(R.id.icon);
+        FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
+        int iconSize = uniformTiles ? Math.round(tileHeight * ICON_SHARE)
+                : Math.round((position < dockSize ? 36 : 48) * density);
+        if (iconLp.width != iconSize || iconLp.height != iconSize) {
+            iconLp.width = iconLp.height = iconSize;
+            if (uniformTiles) iconLp.bottomMargin = 0;
+            icon.setLayoutParams(iconLp);
         }
     }
 

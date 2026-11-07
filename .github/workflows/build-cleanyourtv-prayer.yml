@@ -1,15 +1,9 @@
 name: Build CleanYourTV with Prayer Times
 
+# Manual-only fallback build. The canonical TV APK is built by the phone workflow
+# so both deliverables use the same APK and the same persistent signing identity.
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, fix/mp4-wallpaper-textureview, feature/scheduled-wallpaper-mode, feature/builtin-wallpaper-picker, feature/default-home-screen ]
-    paths:
-      - "launcher/app/src/main/**"
-      - "launcher/app/build.gradle"
-      - "launcher/gradle/**"
-      - "launcher/gradlew"
-      - ".github/workflows/build-cleanyourtv-prayer.yml"
 
 permissions:
   contents: read
@@ -31,6 +25,11 @@ jobs:
           packages: platforms;android-34 build-tools;34.0.0
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Restore persistent launcher signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: cleanyourtv-launcher-debug-signing-v1
       - name: Build CleanYourTV launcher
         working-directory: launcher
         run: |

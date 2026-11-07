@@ -232,7 +232,7 @@ public final class LauncherSettingsActivity extends Activity {
         int mode = choices.getInt("home_greeting_mode", 0);
         String[] labels = {"Ucapan waktu", "Ucapan waktu + teks kustom", "Teks kustom saja"};
         int safeMode = Math.max(0, Math.min(2, mode));
-        greetingSettingsRow.setText("Sapaan homescreen  ·  " + labels[safeMode] + "   ✓");
+        greetingSettingsRow.setText("Sapaan homescreen  ·  " + labels[safeMode]);
     }
 
     private int dp(float value) {
@@ -824,10 +824,23 @@ public final class LauncherSettingsActivity extends Activity {
         advancedChoice.setEnabled(animations);
         advancedChoice.setAlpha(animations ? 1f : 0.5f);
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
-        wallpaperChoice.setText(getString(R.string.wallpaper_state,
-                "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
-                        : wallpaperCurrent != null ? wallpaperCurrent
-                        : getString(R.string.wallpaper_theme_default)));
+        String builtinCurrent = choices.getString("builtin_wallpaper_choice", null);
+        boolean tvStorageCurrent = choices.getBoolean("tv_storage_wallpaper_choice", false);
+        String wallpaperLabel;
+        if (tvStorageCurrent) {
+            wallpaperLabel = getString(R.string.wallpaper_from_tv);
+        } else if (builtinCurrent != null) {
+            wallpaperLabel = getString(R.string.builtin_wallpaper_title);
+        } else if ("none".equals(wallpaperCurrent)) {
+            wallpaperLabel = getString(R.string.wallpaper_none);
+        } else if (wallpaperCurrent != null) {
+            wallpaperLabel = wallpaperCurrent;
+        } else {
+            wallpaperLabel = getString(R.string.wallpaper_theme_default);
+        }
+        wallpaperChoice.setText(getString(R.string.wallpaper_state, wallpaperLabel));
+        wallpaperChoice.setSelected(!tvStorageCurrent);
+        tvStorageWallpaperChoice.setSelected(tvStorageCurrent);
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         prayerTimesChoice.setText(getString(R.string.prayer_times_state, getString(showPrayerTimes ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());

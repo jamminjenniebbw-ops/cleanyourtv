@@ -203,28 +203,36 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
 
+    private TextView greetingSettingsRow;
+
     /** Three independently configurable home greeting modes, stored locally on the TV. */
     private void addGreetingSettings() {
         android.widget.ScrollView scroll = (android.widget.ScrollView) ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
         if (!(scroll.getChildAt(0) instanceof LinearLayout)) return;
         LinearLayout content = (LinearLayout) scroll.getChildAt(0);
-        TextView row = new TextView(this);
-        row.setText("Sapaan homescreen  ·  Atur tampilan");
+        greetingSettingsRow = new TextView(this);
+        TextView row = greetingSettingsRow;
+        updateGreetingSettingsRow();
         row.setTextColor(Color.WHITE);
         row.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         row.setPadding(dp(20), 0, dp(20), 0);
         row.setMinHeight(dp(58));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF202A34);
-        bg.setCornerRadius(dp(10));
-        row.setBackground(bg);
+        row.setBackgroundResource(R.drawable.settings_choice_bg);
         row.setFocusable(true);
         row.setOnClickListener(v -> chooseGreetingMode());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(16);
         content.addView(row, 1, lp);
+    }
+
+    private void updateGreetingSettingsRow() {
+        if (greetingSettingsRow == null) return;
+        int mode = choices.getInt("home_greeting_mode", 0);
+        String[] labels = {"Ucapan waktu", "Ucapan waktu + teks kustom", "Teks kustom saja"};
+        int safeMode = Math.max(0, Math.min(2, mode));
+        greetingSettingsRow.setText("Sapaan homescreen  ·  " + labels[safeMode] + "   ✓");
     }
 
     private int dp(float value) {
@@ -238,6 +246,7 @@ public final class LauncherSettingsActivity extends Activity {
                 .setTitle("Tampilan sapaan")
                 .setSingleChoiceItems(modes, selected, (dialog, which) -> {
                     choices.edit().putInt("home_greeting_mode", which).apply();
+                    updateGreetingSettingsRow();
                     changed();
                     dialog.dismiss();
                     if (which == 1) editGreetingText("home_greeting_custom_time", "Teks kustom untuk mode 2");

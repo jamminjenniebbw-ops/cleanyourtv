@@ -662,6 +662,18 @@ final class Config {
                 wallpaperEnabled = true;
             }
         }
+        // A wallpaper selected directly from TV storage is an explicit local override.
+        // Keep it separate from theme files and rotation collections so it always wins.
+        String tvStorageWallpaper = choices.getString("tv_storage_wallpaper_choice", null);
+        if (tvStorageWallpaper != null && tvStorageWallpaper.matches("jpg|jpeg|png|gif|mp4")) {
+            File localTvWallpaper = new File(ctx.getFilesDir(), "tv_wallpaper." + tvStorageWallpaper);
+            if (localTvWallpaper.isFile() && localTvWallpaper.length() > 0) {
+                wallpapers.clear();
+                wallpapers.add(localTvWallpaper);
+                wallpaper = localTvWallpaper;
+                wallpaperEnabled = true;
+            }
+        }
         // A festive skin comes only from a theme; config.xml has no festival.
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));

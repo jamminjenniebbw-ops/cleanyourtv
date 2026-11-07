@@ -79,7 +79,9 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent,
                                @NonNull RecyclerView.State state) {
         int pos = parent.getChildAdapterPosition(view);
-        if (pos >= 0 && (singleRow || pos < dockSize)) {
+        RecyclerView.Adapter<?> adapter = parent.getAdapter();
+        boolean homeMode = !(adapter instanceof AppAdapter) || ((AppAdapter) adapter).isDefaultHomeMode();
+        if (homeMode && pos >= 0 && (singleRow || pos < dockSize)) {
             outRect.top = (int) (6 * density);
             outRect.bottom = (int) (12 * density);
         }
@@ -87,7 +89,8 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
 
     @Override
     public void onDraw(@NonNull Canvas c, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-        if (!bandVisible) return;
+        RecyclerView.Adapter<?> adapter = parent.getAdapter();
+        if (!bandVisible || (adapter instanceof AppAdapter && !((AppAdapter) adapter).isDefaultHomeMode())) return;
         boolean any = false;
         int cardWidth = 0;
         for (int i = 0; i < parent.getChildCount(); i++) {

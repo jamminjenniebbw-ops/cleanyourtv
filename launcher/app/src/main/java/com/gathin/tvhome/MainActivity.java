@@ -110,6 +110,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     static int COLUMNS = 4;
     /** Compact first-row count, independent of the app drawer's COLUMNS setting. */
     private int defaultHomeCount = 3;
+    /** Suppresses transient top-bar DPAD handling while the adapter switches Home/drawer projections. */
+    private boolean projectionTransition;
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
@@ -649,15 +651,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // into the initial viewport. Lower the dock by up to half a tile, while keeping the
             // shift proportional to the actual tile size on different TV resolutions.
             if (adapter != null && adapter.isDefaultHomeMode() && !singleRow) {
-                int compactCell = Math.round(92 * density);
-                int targetWidth = Math.min(inner, compactCell * defaultHomeCount);
-                int side = Math.max(0, ((r - l) - targetWidth) / 2);
-                int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * density)), density)
-                        + Math.round(AppAdapter.DOCK_EXTRA_DP * density);
-                want = Math.max(0, h - homeItemH - Math.round(30 * density));
-                if (grid.getPaddingLeft() != side || grid.getPaddingRight() != side || grid.getPaddingTop() != want) {
-                    grid.setPadding(side, want, side, gridBasePaddingBottom);
-                }
+                applyDefaultHomeGridPadding(true);
             } else if (adapter != null && !adapter.isDefaultHomeMode()) {
                 want = Math.round(18 * density);
                 if (grid.getPaddingLeft() != gridBasePaddingLeft || grid.getPaddingRight() != gridBasePaddingRight || grid.getPaddingTop() != want) {
@@ -692,7 +686,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
-                if (prayerTimesPanel != null) prayerTimesPanel.onGridScrolled(rv.computeVerticalScrollOffset());
+                // The prayer panel belongs only to the compact Home projection. RecyclerView also reports
+                // scrolls while the app drawer is active; those must never make the panel reappear over apps.
+                if (prayerTimesPanel != null && adapter != null && adapter.isDefaultHomeMode()) {
+                    prayerTimesPanel.onGridScrolled(rv.computeVerticalScrollOffset());
+                }
                 if (!glassShown) return;
                 glassTargetY -= dy;
                 glassScrollShift -= dy;
@@ -820,6 +818,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (projectionTransition) return true;
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
@@ -2355,13 +2354,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             float d = density;
             int width = grid.getWidth() > 0 ? grid.getWidth() : root.getWidth();
             int inner = Math.max(0, width - gridBasePaddingLeft - gridBasePaddingRight);
-            // A 68dp tile in a 76dp cell leaves an 8dp gap; center the 3/5-app group.
+            // Use the same fixed 76dp cell width for both 3- and 5-app layouts. The cells
+            // are centered as a group, so changing the count never changes the gap between icons.
             int groupWidth = Math.min(inner, Math.round(76 * d) * defaultHomeCount);
-            int side = Math.max(0, (width - groupWidth) / 2);
+            int side = gridBasePaddingLeft + Math.max(0, (inner - groupWidth) / 2);
             int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * d)), d)
                     + Math.round(AppAdapter.DOCK_EXTRA_DP * d);
-            int top = Math.max(0, grid.getHeight() - homeItemH - Math.round(30 * d));
-            grid.setPadding(side, top, side, gridBasePaddingBottom);
+            // Keep the dock close to the lower edge instead of leaving the previous 30dp gap.
+            int top = Math.max(0, grid.getHeight() - homeItemH - Math.round(12 * d));
+            if (grid.getPaddingLeft() != side || grid.getPaddingRight() != side
+                    || grid.getPaddingTop() != top || grid.getPaddingBottom() != gridBasePaddingBottom) {
+                grid.setPadding(side, top, side, gridBasePaddingBottom);
+            }
         } else {
             grid.setPadding(gridBasePaddingLeft, home ? grid.getPaddingTop() : Math.round(18 * density),
                     gridBasePaddingRight, gridBasePaddingBottom);
@@ -2370,6 +2374,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void setDefaultHomeMode(boolean home, int focusPosition) {
         if (adapter == null || adapter.isDefaultHomeMode() == home) return;
+        projectionTransition = true;
         adapter.setDefaultHomeMode(home);
         GridLayoutManager layout = (GridLayoutManager) grid.getLayoutManager();
         layout.setSpanCount(singleRow ? 1 : (home ? defaultHomeCount : COLUMNS));
@@ -2382,9 +2387,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         grid.requestLayout();
         grid.post(() -> {
-            if (isFinishing() || adapter == null) return;
+            if (isFinishing() || adapter == null) {
+                projectionTransition = false;
+                return;
+            }
             int count = adapter.appCount();
             if (count > 0) focusTile(Math.max(0, Math.min(focusPosition, count - 1)));
+            // Keep top-bar key handlers inert through the frame in which RecyclerView restores focus.
+            grid.postOnAnimation(() -> projectionTransition = false);
         });
     }
 

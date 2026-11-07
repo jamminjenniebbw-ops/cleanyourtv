@@ -2380,6 +2380,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 applyDefaultHomeGridPadding(true);
                 grid.requestLayout();
                 refitGlass();
+                // The first focus request can race RecyclerView's final compact-grid measurement.
+                // Re-anchor to the first real Home card only after both layout passes have settled.
+                if (adapter.appCount() > 0) {
+                    grid.postOnAnimation(() -> grid.postOnAnimation(() -> {
+                        if (grid == null || adapter == null || !adapter.isDefaultHomeMode()
+                                || isFinishing() || !hasWindowFocus()) return;
+                        RecyclerView.ViewHolder first = grid.findViewHolderForAdapterPosition(0);
+                        View firstCard = first == null ? null : first.itemView.findViewById(R.id.card);
+                        if (firstCard != null) {
+                            if (!firstCard.isFocused()) firstCard.requestFocus();
+                            if (firstCard.isFocused()) onTileFocused(0, firstCard);
+                        }
+                    }));
+                }
             }
         });
     }
@@ -2456,6 +2470,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 button.setFocusable(false);
             }
         }
+        // Never leave the app-drawer-sized highlight visible during the projection change.
+        // The new card will restore it with its own measured dimensions after layout.
+        hideGlass();
+        glassCardW = 0;
         adapter.setDefaultHomeMode(home);
         GridLayoutManager layout = (GridLayoutManager) grid.getLayoutManager();
         layout.setSpanCount(singleRow ? 1 : (home ? defaultHomeCount : COLUMNS));

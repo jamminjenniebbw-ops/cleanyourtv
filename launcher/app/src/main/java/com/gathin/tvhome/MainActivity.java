@@ -463,7 +463,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // still follows the dock.
         if (!cfg.dockTitle) hero.setVisibility(View.GONE);
         heroName = findViewById(R.id.heroName);
-        heroName.setTextSize(42f);
+        heroName.setTextSize(39f);
         greeting = findViewById(R.id.greeting);
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
@@ -1739,7 +1739,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 8 * density - hero.getHeight();
+        float y = dockTopInRoot - 12 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic && heroArtAlpha > 0f) showHeroArt(position);
 

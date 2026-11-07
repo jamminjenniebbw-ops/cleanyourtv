@@ -112,6 +112,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private int defaultHomeCount = 3;
     /** Suppresses transient top-bar DPAD handling while the adapter switches Home/drawer projections. */
     private boolean projectionTransition;
+    private final ArrayList<View> temporarilyDisabledTopBarFocus = new ArrayList<>();
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
@@ -2375,6 +2376,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void setDefaultHomeMode(boolean home, int focusPosition) {
         if (adapter == null || adapter.isDefaultHomeMode() == home) return;
         projectionTransition = true;
+        temporarilyDisabledTopBarFocus.clear();
+        ArrayList<View> topBarCandidates = new ArrayList<>();
+        if (btnInputs != null) topBarCandidates.add(btnInputs);
+        if (btnWifi != null) topBarCandidates.add(btnWifi);
+        if (btnVpn != null) topBarCandidates.add(btnVpn);
+        if (btnSettings != null) topBarCandidates.add(btnSettings);
+        if (btnReorder != null) topBarCandidates.add(btnReorder);
+        if (btnLibraryTop != null) topBarCandidates.add(btnLibraryTop);
+        if (topAppButtons != null) topBarCandidates.addAll(topAppButtons);
+        for (View button : topBarCandidates) {
+            if (button != null && button.isFocusable()) {
+                temporarilyDisabledTopBarFocus.add(button);
+                button.setFocusable(false);
+            }
+        }
         adapter.setDefaultHomeMode(home);
         GridLayoutManager layout = (GridLayoutManager) grid.getLayoutManager();
         layout.setSpanCount(singleRow ? 1 : (home ? defaultHomeCount : COLUMNS));
@@ -2388,14 +2404,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.requestLayout();
         grid.post(() -> {
             if (isFinishing() || adapter == null) {
-                projectionTransition = false;
+                restoreTopBarFocusAfterProjection();
                 return;
             }
             int count = adapter.appCount();
             if (count > 0) focusTile(Math.max(0, Math.min(focusPosition, count - 1)));
-            // Keep top-bar key handlers inert through the frame in which RecyclerView restores focus.
-            grid.postOnAnimation(() -> projectionTransition = false);
+            // Keep top-bar pills out of focus search until RecyclerView has restored the target app tile.
+            grid.postOnAnimation(this::restoreTopBarFocusAfterProjection);
         });
+    }
+
+    private void restoreTopBarFocusAfterProjection() {
+        for (View button : temporarilyDisabledTopBarFocus) {
+            if (button != null) button.setFocusable(true);
+        }
+        temporarilyDisabledTopBarFocus.clear();
+        projectionTransition = false;
     }
 
     @Override public void onLibraryFocused() {

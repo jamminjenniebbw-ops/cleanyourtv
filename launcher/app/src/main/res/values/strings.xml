@@ -53,6 +53,7 @@
     <string name="dock_opacity_label">Dock band opacity</string>
     <string name="prayer_times_state">Prayer schedule: %1$s</string>
     <string name="wallpaper_label">Wallpaper</string>
+    <string name="wallpaper_from_theme_collection">Wallpaper tema</string>
     <string name="wallpaper_state">Wallpaper: %1$s</string>
     <string name="wallpaper_none">None</string>
     <string name="wallpaper_applied">Wallpaper changed</string>

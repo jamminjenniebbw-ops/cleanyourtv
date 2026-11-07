@@ -825,7 +825,7 @@ public final class LauncherSettingsActivity extends Activity {
         advancedChoice.setAlpha(animations ? 1f : 0.5f);
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         String builtinCurrent = choices.getString("builtin_wallpaper_choice", null);
-        boolean tvStorageCurrent = choices.getBoolean("tv_storage_wallpaper_choice", false);
+        boolean tvStorageCurrent = choices.getString("tv_storage_wallpaper_choice", null) != null;
         String wallpaperLabel;
         if (tvStorageCurrent) {
             wallpaperLabel = getString(R.string.wallpaper_from_tv);

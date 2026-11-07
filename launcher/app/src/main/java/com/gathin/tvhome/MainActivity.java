@@ -2365,26 +2365,50 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (grid == null) return;
         if (home && !singleRow) {
             float d = density;
-            int width = grid.getWidth() > 0 ? grid.getWidth() : root.getWidth();
-            int inner = Math.max(0, width - gridBasePaddingLeft - gridBasePaddingRight);
-            // Each Home span is wider than the 68dp card, leaving a deliberate 24dp
-            // breathing gap between neighboring apps. The previous 68dp span made cards touch.
-            // Keep the total group width tied to the actual 3/5 shortcut count and center it.
-            int homeCellWidth = Math.round(92 * d);
-            int groupWidth = Math.min(inner, homeCellWidth * defaultHomeCount);
-            int side = gridBasePaddingLeft + Math.max(0, (inner - groupWidth) / 2);
+            // Constrain the RecyclerView itself to the dock group. Padding alone was unreliable:
+            // GridLayoutManager could retain full-screen span bounds on the first layout and after
+            // settings recreation, leaving the three/five cards spread across the whole screen.
+            // A narrow, centered viewport makes the span width deterministic from the first layout.
+            ViewGroup.LayoutParams raw = grid.getLayoutParams();
+            if (raw instanceof FrameLayout.LayoutParams) {
+                FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) raw;
+                int parentWidth = grid.getParent() instanceof View
+                        ? ((View) grid.getParent()).getWidth() : 0;
+                if (parentWidth <= 0) parentWidth = getResources().getDisplayMetrics().widthPixels;
+                int cellWidth = Math.round(84 * d); // 68dp card + 16dp gap between neighboring apps.
+                int desiredWidth = cellWidth * defaultHomeCount
+                        + gridBasePaddingLeft + gridBasePaddingRight;
+                desiredWidth = Math.min(parentWidth, desiredWidth);
+                boolean changed = lp.width != desiredWidth || lp.gravity != (Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+                if (changed) {
+                    lp.width = desiredWidth;
+                    lp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                    grid.setLayoutParams(lp);
+                }
+            }
             int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * d)), d)
                     + Math.round(AppAdapter.DOCK_EXTRA_DP * d);
-            // Align the dock to the bottom of the Home viewport; the decoration is already
-            // included in homeItemH, so no additional 12dp spacer is needed.
-            // Move the complete dock row a little lower while keeping its decorated bottom
-            // edge inside the grid viewport.
-            int top = Math.max(0, grid.getHeight() - homeItemH + Math.round(6 * d));
-            if (grid.getPaddingLeft() != side || grid.getPaddingRight() != side
-                    || grid.getPaddingTop() != top || grid.getPaddingBottom() != gridBasePaddingBottom) {
-                grid.setPadding(side, top, side, gridBasePaddingBottom);
+            // Keep the decorated dock row close to the lower edge of its viewport.
+            int top = Math.max(0, grid.getHeight() - homeItemH + Math.round(10 * d));
+            if (grid.getPaddingLeft() != gridBasePaddingLeft
+                    || grid.getPaddingRight() != gridBasePaddingRight
+                    || grid.getPaddingTop() != top
+                    || grid.getPaddingBottom() != gridBasePaddingBottom) {
+                grid.setPadding(gridBasePaddingLeft, top, gridBasePaddingRight, gridBasePaddingBottom);
             }
         } else {
+            // The full-width viewport is restored for the complete app drawer.
+            ViewGroup.LayoutParams raw = grid.getLayoutParams();
+            if (raw instanceof FrameLayout.LayoutParams) {
+                FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) raw;
+                boolean changed = lp.width != ViewGroup.LayoutParams.MATCH_PARENT
+                        || lp.gravity != (Gravity.TOP | Gravity.START);
+                if (changed) {
+                    lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                    lp.gravity = Gravity.TOP | Gravity.START;
+                    grid.setLayoutParams(lp);
+                }
+            }
             grid.setPadding(gridBasePaddingLeft, home ? grid.getPaddingTop() : Math.round(18 * density),
                     gridBasePaddingRight, gridBasePaddingBottom);
         }

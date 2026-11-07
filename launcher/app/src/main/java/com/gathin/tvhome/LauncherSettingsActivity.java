@@ -205,7 +205,7 @@ public final class LauncherSettingsActivity extends Activity {
 
     /** Three independently configurable home greeting modes, stored locally on the TV. */
     private void addGreetingSettings() {
-        android.widget.ScrollView scroll = (android.widget.ScrollView) findViewById(android.R.id.content).getChildAt(0);
+        android.widget.ScrollView scroll = (android.widget.ScrollView) ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
         if (!(scroll.getChildAt(0) instanceof LinearLayout)) return;
         LinearLayout content = (LinearLayout) scroll.getChildAt(0);
         TextView row = new TextView(this);

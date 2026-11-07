@@ -20,6 +20,7 @@ import android.graphics.drawable.StateListDrawable;
 import android.util.TypedValue;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -67,6 +68,7 @@ public final class LauncherSettingsActivity extends Activity {
         setContentView(R.layout.activity_launcher_settings);
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
+        addGreetingSettings();
         View reorderChoice = findViewById(R.id.reorderChoice);
         reorderChoice.setVisibility(config.launcherSettingsButton ? View.VISIBLE : View.GONE);
         reorderChoice.setOnClickListener(v -> {
@@ -198,6 +200,70 @@ public final class LauncherSettingsActivity extends Activity {
         }
         if (config.launcherSettingsButton) reorderChoice.requestFocus();
         else columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
+    }
+
+
+    /** Three independently configurable home greeting modes, stored locally on the TV. */
+    private void addGreetingSettings() {
+        android.widget.ScrollView scroll = (android.widget.ScrollView) findViewById(android.R.id.content).getChildAt(0);
+        if (!(scroll.getChildAt(0) instanceof LinearLayout)) return;
+        LinearLayout content = (LinearLayout) scroll.getChildAt(0);
+        TextView row = new TextView(this);
+        row.setText("Sapaan homescreen  ·  Atur tampilan");
+        row.setTextColor(Color.WHITE);
+        row.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(20), 0, dp(20), 0);
+        row.setMinHeight(dp(58));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xFF202A34);
+        bg.setCornerRadius(dp(10));
+        row.setBackground(bg);
+        row.setFocusable(true);
+        row.setOnClickListener(v -> chooseGreetingMode());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(16);
+        content.addView(row, 1, lp);
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void chooseGreetingMode() {
+        String[] modes = {"1. Ucapan waktu", "2. Ucapan waktu + teks kustom", "3. Teks kustom saja"};
+        int selected = choices.getInt("home_greeting_mode", 0);
+        new AlertDialog.Builder(this)
+                .setTitle("Tampilan sapaan")
+                .setSingleChoiceItems(modes, selected, (dialog, which) -> {
+                    choices.edit().putInt("home_greeting_mode", which).apply();
+                    changed();
+                    dialog.dismiss();
+                    if (which == 1) editGreetingText("home_greeting_custom_time", "Teks kustom untuk mode 2");
+                    else if (which == 2) editGreetingText("home_greeting_custom_only", "Teks kustom untuk mode 3");
+                    else Toast.makeText(this, "Mode ucapan waktu aktif", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void editGreetingText(String key, String title) {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setText(choices.getString(key, ""));
+        input.setSelection(input.getText().length());
+        input.setHint("Contoh: ASNA");
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(input)
+                .setPositiveButton("Simpan", (dialog, which) -> {
+                    choices.edit().putString(key, input.getText().toString().trim()).apply();
+                    changed();
+                    Toast.makeText(this, "Teks sapaan disimpan", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void reverseRow(TextView[] views) {

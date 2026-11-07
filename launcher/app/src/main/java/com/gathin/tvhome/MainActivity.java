@@ -616,6 +616,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
         adapter = new AppAdapter(this, this, defaultHomeCount, COLUMNS, cfg);
+        // The launcher must start in the compact Home projection, not wait for a Home-key
+        // intent or a later drawer transition to switch the adapter into that mode.
+        adapter.setDefaultHomeMode(true);
         dockApps = cfg.dockApps;
         fillDockLeavesSlots = !cfg.fillDock;
         Order savedOrder = Order.load(Order.file(this));
@@ -2375,7 +2378,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 int parentWidth = grid.getParent() instanceof View
                         ? ((View) grid.getParent()).getWidth() : 0;
                 if (parentWidth <= 0) parentWidth = getResources().getDisplayMetrics().widthPixels;
-                int cellWidth = Math.round(84 * d); // 68dp card + 16dp gap between neighboring apps.
+                int cellWidth = Math.round(80 * d); // 68dp card + 12dp gap between neighboring apps.
                 int desiredWidth = cellWidth * defaultHomeCount
                         + gridBasePaddingLeft + gridBasePaddingRight;
                 desiredWidth = Math.min(parentWidth, desiredWidth);
@@ -2389,7 +2392,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * d)), d)
                     + Math.round(AppAdapter.DOCK_EXTRA_DP * d);
             // Keep the decorated dock row close to the lower edge of its viewport.
-            int top = Math.max(0, grid.getHeight() - homeItemH + Math.round(10 * d));
+            int top = Math.max(0, grid.getHeight() - homeItemH + Math.round(20 * d));
             if (grid.getPaddingLeft() != gridBasePaddingLeft
                     || grid.getPaddingRight() != gridBasePaddingRight
                     || grid.getPaddingTop() != top

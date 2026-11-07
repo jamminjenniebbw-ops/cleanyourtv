@@ -170,6 +170,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     static final float MIN_HEIGHT_FIT = 0.85f;
 
     private final Context ctx;
+    /** RecyclerView supplying the measured cell width for the compact first row. */
+    private RecyclerView parentGrid;
     private final int rowsBelowDock;
     private final boolean dockTitle;
     /** The owner's saved order (reorder button, Order): key -> rank. Empty when there is none or it no longer applies. */
@@ -389,6 +391,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (parent instanceof RecyclerView) parentGrid = (RecyclerView) parent;
         if (viewType == 1) {
             View row = LayoutInflater.from(ctx).inflate(R.layout.row_app_library, parent, false);
             View button = row.findViewById(R.id.btnLibrary);
@@ -442,12 +445,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
      */
     private void sizeTileForPosition(Holder holder, int position) {
         View item = holder.itemView;
-        if (!(item.getParent() instanceof RecyclerView)) return;
-        RecyclerView parent = (RecyclerView) item.getParent();
+        RecyclerView parent = parentGrid;
+        if (parent == null) return;
         float density = ctx.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
-        if (inner <= 0) return;
+        if (inner <= 0) {
+            item.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+                @Override public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                                                     int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                    item.removeOnLayoutChangeListener(this);
+                    int position = holder.getBindingAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION) sizeTileForPosition(holder, position);
+                }
+            });
+            return;
+        }
         int normalWidth = tileWidthPx(inner, parent.getHeight(), gridColumns, rowsBelowDock, dockTitle, dockRow, density);
         int tileWidth;
         if (position < dockSize) {

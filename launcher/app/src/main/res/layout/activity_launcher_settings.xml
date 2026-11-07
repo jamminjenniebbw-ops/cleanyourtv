@@ -99,20 +99,10 @@
             android:layout_marginTop="28dp" />
 
         <TextView
-            android:id="@+id/builtinWallpaperChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp" />
-
-        <TextView
             android:id="@+id/tvStorageWallpaperChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp"
             android:text="@string/wallpaper_from_tv" />
-
-        <TextView
-            android:id="@+id/scheduledWallpaperChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="10dp" />
 
         <TextView
             android:id="@+id/animationsChoice"

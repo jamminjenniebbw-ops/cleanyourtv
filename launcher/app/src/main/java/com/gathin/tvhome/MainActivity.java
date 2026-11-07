@@ -651,7 +651,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (adapter != null && adapter.isDefaultHomeMode() && !singleRow) {
                 int compactCell = Math.round(92 * density);
                 int targetWidth = Math.min(inner, compactCell * defaultHomeCount);
-                int side = Math.max(0, (width - targetWidth) / 2);
+                int side = Math.max(0, ((r - l) - targetWidth) / 2);
                 int homeItemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(Math.round(68 * density)), density)
                         + Math.round(AppAdapter.DOCK_EXTRA_DP * density);
                 want = Math.max(0, h - homeItemH - Math.round(30 * density));

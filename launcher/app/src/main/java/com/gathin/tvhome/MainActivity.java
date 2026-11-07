@@ -614,7 +614,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, cfg.dockTitle, cfg.dockRow, density);
             int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(tileW), density);
             int dockRow = itemH + (int) (AppAdapter.DOCK_EXTRA_DP * density);   // item height plus DockDecoration offsets
-            int gridRows = itemH * rowsBelowDock;
+            // On the initial Home screen, park the dock at the bottom edge: do not reserve
+            // visible height for rows below it. Those rows remain in the RecyclerView and are
+            // reached with Down, instead of peeking into view as a clipped second row.
+            int gridRows = 0;
             // Keep the hero below the header when the library is enabled on a short screen,
             // even when the theme requests an extra visible row below the dock.
             int shelfClearance = cfg.appLibrary ? hero.getMeasuredHeight() + (int) (40 * density) : 0;

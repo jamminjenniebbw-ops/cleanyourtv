@@ -2519,8 +2519,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             greeting.setText(festiveGreeting);
             greeting.setTextColor(liftTowardsWhite(festival.accentColor(), 0.25f));
         } else {
-            greeting.setText(greetingName.isEmpty() ? getString(res)
-                    : getString(R.string.greeting_with_name, getString(res), greetingName));
+            SharedPreferences greetingPrefs = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+            int greetingMode = greetingPrefs.getInt("home_greeting_mode", 0);
+            String customTimeText = greetingPrefs.getString("home_greeting_custom_time", "").trim();
+            String customOnlyText = greetingPrefs.getString("home_greeting_custom_only", "").trim();
+            String timeGreeting = greetingName.isEmpty() ? getString(res)
+                    : getString(R.string.greeting_with_name, getString(res), greetingName);
+            String displayGreeting;
+            if (greetingMode == 1) {
+                displayGreeting = customTimeText.isEmpty() ? getString(res)
+                        : timeGreeting + " " + customTimeText;
+            } else if (greetingMode == 2) {
+                displayGreeting = customOnlyText.isEmpty() ? getString(res) : customOnlyText;
+            } else {
+                displayGreeting = timeGreeting;
+            }
+            greeting.setText(displayGreeting);
             greeting.setTextColor(greetingColor);
         }
         if (shamsi) shamsiDate.setText(Shamsi.today(getResources()));

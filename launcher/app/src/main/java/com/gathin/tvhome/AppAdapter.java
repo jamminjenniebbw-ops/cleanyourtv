@@ -180,6 +180,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private boolean reordering;
     private final TileListener listener;
     private final int dockSize;
+    /** Number of columns in the app drawer; independent of the compact default-home row. */
+    private final int gridColumns;
     /** config dock_row: false makes the dock apps the first tiles of one plain grid (names shown, no empty slots). */
     private final boolean dockRow;
     /** config single_row: tiles sit in one sideways row, each as wide as a grid column would be. */
@@ -219,9 +221,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
+        this(ctx, listener, dockSize, dockSize, cfg);
+    }
+
+    AppAdapter(Context ctx, TileListener listener, int dockSize, int gridColumns, Config cfg) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
+        this.gridColumns = Math.max(1, gridColumns);
         this.favourites = cfg.dockApps;
         this.fillDock = cfg.fillDock;
         this.hidden = new HashSet<>(cfg.hiddenApps);
@@ -399,7 +406,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
-        int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, dockTitle, dockRow, density), h = tileHeightPx(w);
+        int w = tileWidthPx(inner, parent.getHeight(), gridColumns, rowsBelowDock, dockTitle, dockRow, density), h = tileHeightPx(w);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
         cardLp.width = w;
@@ -429,10 +436,57 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
     }
 
+    /**
+     * The first row is the compact default home. Its tile size is deliberately fixed independently
+     * of the app-drawer column count and rows-below-dock setting. Later rows keep the theme's sizing.
+     */
+    private void sizeTileForPosition(Holder holder, int position) {
+        View item = holder.itemView;
+        if (!(item.getParent() instanceof RecyclerView)) return;
+        RecyclerView parent = (RecyclerView) item.getParent();
+        float density = ctx.getResources().getDisplayMetrics().density;
+        int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
+        int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
+        if (inner <= 0) return;
+        int normalWidth = tileWidthPx(inner, parent.getHeight(), gridColumns, rowsBelowDock, dockTitle, dockRow, density);
+        int tileWidth;
+        if (position < dockSize) {
+            int cell = inner / Math.max(1, dockSize);
+            tileWidth = Math.min(Math.round(128 * density), Math.max(Math.round(80 * density), cell - Math.round(20 * density)));
+        } else {
+            tileWidth = normalWidth;
+        }
+        int tileHeight = tileHeightPx(tileWidth);
+        ViewGroup.LayoutParams cardLp = holder.card.getLayoutParams();
+        if (cardLp.width != tileWidth || cardLp.height != tileHeight) {
+            cardLp.width = tileWidth;
+            cardLp.height = tileHeight;
+            holder.card.setLayoutParams(cardLp);
+        }
+        ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) holder.name.getLayoutParams();
+        int nameTop = tileHeight + Math.round((dockRow ? 7 : 4) * density);
+        if (nameLp.width != tileWidth || nameLp.topMargin != nameTop) {
+            nameLp.width = tileWidth;
+            nameLp.topMargin = nameTop;
+            holder.name.setLayoutParams(nameLp);
+        }
+        if (uniformTiles) {
+            ImageView icon = item.findViewById(R.id.icon);
+            FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
+            int iconSize = Math.round(tileHeight * ICON_SHARE);
+            if (iconLp.width != iconSize || iconLp.height != iconSize) {
+                iconLp.width = iconLp.height = iconSize;
+                iconLp.bottomMargin = 0;
+                icon.setLayoutParams(iconLp);
+            }
+        }
+    }
+
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         if (isLibraryAt(position)) return;
         Holder h = (Holder) holder;
+        sizeTileForPosition(h, position);
         Entry e = items.get(position);
         if (e.kind == Entry.EMPTY) {
             // A free dock slot keeps its place in the row and the band, but shows nothing and takes no focus.

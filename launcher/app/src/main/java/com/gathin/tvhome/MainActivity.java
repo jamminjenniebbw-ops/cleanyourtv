@@ -2426,8 +2426,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override public void onLibraryUp() {
         if (adapter.appCount() == 0) { firstTopButton().requestFocus(); return; }
-        int lastRow = ((adapter.appCount() - 1) / COLUMNS) * COLUMNS;
-        focusTile(Math.min(lastRow + lastFocused % COLUMNS, adapter.appCount() - 1));
+        int count = adapter.appCount();
+        int lastRow = count <= defaultHomeCount ? 0
+                : defaultHomeCount + ((count - defaultHomeCount - 1) / COLUMNS) * COLUMNS;
+        int column = count <= defaultHomeCount ? Math.min(lastFocused, defaultHomeCount - 1)
+                : Math.max(0, (lastFocused - defaultHomeCount) % COLUMNS);
+        focusTile(Math.min(lastRow + column, count - 1));
     }
 
     private void focusLibrary() {

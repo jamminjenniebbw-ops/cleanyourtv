@@ -46,18 +46,15 @@ public final class LauncherSettingsActivity extends Activity {
     private static final int[] DOCK_OPACITIES = {100, 70, 50, 30};
     private final TextView[] dockChoices = new TextView[DOCK_OPACITIES.length];
     private TextView wallpaperChoice;
-    private TextView builtinWallpaperChoice;
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
     private TextView prayerTimesChoice;
-    private TextView scheduledWallpaperChoice;
     private TextView tvStorageWallpaperChoice;
     private static final int REQUEST_TV_WALLPAPER = 7401;
     private static final int REQUEST_MEDIA_PERMISSION = 7402;
     private boolean showPrayerTimes;
-    private boolean scheduledWallpaperEnabled;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -127,8 +124,6 @@ public final class LauncherSettingsActivity extends Activity {
         }
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
-        builtinWallpaperChoice = findViewById(R.id.builtinWallpaperChoice);
-        builtinWallpaperChoice.setOnClickListener(v -> showBuiltinWallpaperPicker());
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
             animations = !animations;
@@ -161,14 +156,8 @@ public final class LauncherSettingsActivity extends Activity {
         });
         tvStorageWallpaperChoice = findViewById(R.id.tvStorageWallpaperChoice);
         tvStorageWallpaperChoice.setOnClickListener(v -> chooseWallpaperFromTv());
-        scheduledWallpaperChoice = findViewById(R.id.scheduledWallpaperChoice);
-        scheduledWallpaperEnabled = choices.getBoolean("scheduled_wallpaper_enabled", false);
-        scheduledWallpaperChoice.setOnClickListener(v -> {
-            scheduledWallpaperEnabled = !scheduledWallpaperEnabled;
-            choices.edit().putBoolean("scheduled_wallpaper_enabled", scheduledWallpaperEnabled).apply();
-            changed();
-            refresh();
-        });
+        // Remove the unfinished scheduled-wallpaper preference left by older builds.
+        choices.edit().remove("scheduled_wallpaper_enabled").apply();
         openOnStartChoice = findViewById(R.id.openOnStartChoice);
         if (config.openOnStartChoice) {
             openOnStartChoice.setVisibility(View.VISIBLE);
@@ -180,9 +169,7 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice")
                     .remove("tv_storage_wallpaper_choice")
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
-                    .remove("scheduled_wallpaper_enabled").commit();
-            scheduledWallpaperEnabled = false;
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -677,15 +664,8 @@ public final class LauncherSettingsActivity extends Activity {
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
-        String builtinCurrent = choices.getString("builtin_wallpaper_choice", null);
-        int builtinIndex = java.util.Arrays.asList(BUILTIN_WALLPAPERS).indexOf(builtinCurrent);
-        builtinWallpaperChoice.setText(getString(R.string.builtin_wallpaper_state,
-                builtinIndex < 0 ? getString(R.string.wallpaper_theme_default)
-                        : getString(R.string.builtin_wallpaper_selected, builtinIndex + 1)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         prayerTimesChoice.setText(getString(R.string.prayer_times_state, getString(showPrayerTimes ? R.string.on : R.string.off)));
-        scheduledWallpaperChoice.setText(getString(R.string.scheduled_wallpaper_state,
-                getString(scheduledWallpaperEnabled ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -695,7 +675,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("builtin_wallpaper_choice")
                 || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times")
-                || choices.contains("scheduled_wallpaper_enabled");
+;
     }
 
     private void open(Intent intent) {

@@ -525,6 +525,7 @@ public final class LauncherSettingsActivity extends Activity {
         grid.setFocusableInTouchMode(false);
         final int selected = java.util.Arrays.asList(BUILTIN_WALLPAPERS)
                 .indexOf(choices.getString("builtin_wallpaper_choice", null));
+        final int[] focusedPosition = {Math.max(0, selected)};
         BaseAdapter adapter = new BaseAdapter() {
             @Override public int getCount() { return BUILTIN_WALLPAPERS.length; }
             @Override public Object getItem(int position) { return BUILTIN_WALLPAPERS[position]; }
@@ -574,11 +575,18 @@ public final class LauncherSettingsActivity extends Activity {
                     preview.setImageDrawable(null);
                 }
                 caption.setText(getString(R.string.builtin_wallpaper_item, position + 1));
-                card.setSelected(position == selected);
+                card.setSelected(position == focusedPosition[0]);
                 return card;
             }
         };
         grid.setAdapter(adapter);
+        grid.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                focusedPosition[0] = position;
+                adapter.notifyDataSetChanged();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.builtin_wallpaper_title)
                 .setView(grid)

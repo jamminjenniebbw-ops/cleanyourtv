@@ -433,13 +433,12 @@ public final class LauncherSettingsActivity extends Activity {
             Toast.makeText(this, R.string.wallpaper_unsupported, Toast.LENGTH_LONG).show();
             return;
         }
-        File dir = Config.dir(this);
-        if (dir == null || (!dir.exists() && !dir.mkdirs())) {
-            Toast.makeText(this, R.string.wallpaper_import_failed, Toast.LENGTH_LONG).show();
-            return;
-        }
-        File temp = new File(dir, "wallpaper.importing"), target = new File(dir, "wallpaper." + ext);
-        File backup = new File(dir, "wallpaper.previous");
+        // Store TV-picked media in app-private storage. Theme directories may contain
+        // rotating wallpaper collections that otherwise override a newly imported file.
+        File dir = getFilesDir();
+        File temp = new File(dir, "tv_wallpaper.importing");
+        File target = new File(dir, "tv_wallpaper." + ext);
+        File backup = new File(dir, "tv_wallpaper.previous");
         try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream out = new FileOutputStream(temp)) {
             if (in == null) throw new java.io.IOException("No stream");
             byte[] buffer = new byte[32768]; int n; long total = 0;
@@ -458,10 +457,12 @@ public final class LauncherSettingsActivity extends Activity {
             }
             backup.delete();
             for (String other : new String[]{"jpg", "jpeg", "png", "gif", "mp4"}) {
-                File f = new File(dir, "wallpaper." + other);
+                File f = new File(dir, "tv_wallpaper." + other);
                 if (!f.equals(target) && f.exists()) f.delete();
             }
-            choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice").apply();
+            choices.edit().remove(Config.WALLPAPER_CHOICE_KEY)
+                    .remove("builtin_wallpaper_choice")
+                    .putString("tv_storage_wallpaper_choice", ext).apply();
             changed();
             Toast.makeText(this, R.string.wallpaper_imported, Toast.LENGTH_LONG).show();
             // Leave settings so the home activity resumes and reloads the new wallpaper.

@@ -53,6 +53,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView openOnStartChoice;
     private TextView prayerTimesChoice;
     private TextView tvStorageWallpaperChoice;
+    private TextView defaultHomeAppsChoice;
+    private int defaultHomeApps = 3;
     private static final int REQUEST_TV_WALLPAPER = 7401;
     private static final int REQUEST_MEDIA_PERMISSION = 7402;
     private boolean showPrayerTimes;
@@ -80,6 +82,10 @@ public final class LauncherSettingsActivity extends Activity {
         dockOpacity = config.dockOpacity;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
+
+        defaultHomeApps = choices.getInt("default_home_apps", 3) == 5 ? 5 : 3;
+        defaultHomeAppsChoice = findViewById(R.id.defaultHomeAppsChoice);
+        defaultHomeAppsChoice.setOnClickListener(v -> chooseDefaultHomeApps());
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -171,13 +177,14 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice")
                     .remove("tv_storage_wallpaper_choice")
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).remove("default_home_apps").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             dockOpacity = current.dockOpacity;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
+            defaultHomeApps = 3;
             changed();
             refresh();
         });
@@ -270,6 +277,24 @@ public final class LauncherSettingsActivity extends Activity {
                     choices.edit().putString(key, input.getText().toString().trim()).apply();
                     changed();
                     Toast.makeText(this, "Teks sapaan disimpan", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void chooseDefaultHomeApps() {
+        String[] options = {"3", "5"};
+        int checked = defaultHomeApps == 5 ? 1 : 0;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.default_home_apps_title)
+                .setSingleChoiceItems(options, checked, (dialog, which) -> {
+                    int value = which == 1 ? 5 : 3;
+                    dialog.dismiss();
+                    if (defaultHomeApps == value) return;
+                    defaultHomeApps = value;
+                    choices.edit().putInt("default_home_apps", value).apply();
+                    changed();
+                    refresh();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -817,6 +842,8 @@ public final class LauncherSettingsActivity extends Activity {
         for (int i = 0; i < dockChoices.length; i++) {
             dockChoices[i].setSelected(dockOpacity == DOCK_OPACITIES[i]);
         }
+        defaultHomeAppsChoice.setText(getString(R.string.default_home_apps_state, defaultHomeApps));
+        defaultHomeAppsChoice.setSelected(true);
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         advancedChoice.setText(getString(R.string.advanced_effects_state,
@@ -852,6 +879,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("builtin_wallpaper_choice")
                 || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times")
+                || choices.contains("default_home_apps")
 ;
     }
 

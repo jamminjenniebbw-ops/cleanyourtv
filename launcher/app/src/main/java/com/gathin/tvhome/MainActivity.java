@@ -2323,6 +2323,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return GridNavigation.atHorizontalEdge(position, count, defaultHomeCount,
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
+        // Let RecyclerView's native focus search move horizontally between app tiles in the drawer.
+        // This callback is also wired to Left/Right, so consuming them here would trap focus on one tile.
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) return false;
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
             if (position < COLUMNS) {
                 int homeTarget = Math.min(defaultHomeCount - 1,
@@ -2381,7 +2384,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (btnInputs != null) topBarCandidates.add(btnInputs);
         if (btnWifi != null) topBarCandidates.add(btnWifi);
         if (btnVpn != null) topBarCandidates.add(btnVpn);
-        if (btnSettings != null) topBarCandidates.add(btnSettings);
+        View settingsButton = findViewById(R.id.btnSettings);
+        if (settingsButton != null) topBarCandidates.add(settingsButton);
         if (btnReorder != null) topBarCandidates.add(btnReorder);
         if (btnLibraryTop != null) topBarCandidates.add(btnLibraryTop);
         if (topAppButtons != null) topBarCandidates.addAll(topAppButtons);

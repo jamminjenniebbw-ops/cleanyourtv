@@ -200,17 +200,41 @@ public final class LauncherSettingsActivity extends Activity {
 
 
     private void chooseWallpaperFromTv() {
-        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        pick.addCategory(Intent.CATEGORY_OPENABLE);
-        pick.setType("*/*");
-        pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
-        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        // Prefer ACTION_GET_CONTENT: this is an import operation, so the selected file is
+        // copied into launcher-private storage immediately. Some TV builds do not ship
+        // DocumentsUI, and FX File Explorer 9.x does not expose itself as a standard
+        // ACTION_OPEN_DOCUMENT provider/picker. Try ordinary content pickers first, then
+        // fall back to our own MediaStore list (which needs no external file-manager app).
+        Intent getContent = new Intent(Intent.ACTION_GET_CONTENT);
+        getContent.addCategory(Intent.CATEGORY_OPENABLE);
+        getContent.setType("*/*");
+        getContent.putExtra(Intent.EXTRA_MIME_TYPES,
+                new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
+        getContent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         try {
-            if (pick.resolveActivity(getPackageManager()) != null) startActivityForResult(pick, REQUEST_TV_WALLPAPER);
-            else showIndexedMediaPicker();
-        } catch (ActivityNotFoundException | SecurityException e) {
-            showIndexedMediaPicker();
-        }
+            if (getContent.resolveActivity(getPackageManager()) != null) {
+                startActivityForResult(getContent, REQUEST_TV_WALLPAPER);
+                return;
+            }
+        } catch (ActivityNotFoundException | SecurityException ignored) { }
+
+        // Keep SAF as a secondary route for firmware that has DocumentsUI but no GET_CONTENT
+        // handler. We import a copy, so a persistable grant is not required.
+        Intent openDocument = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        openDocument.addCategory(Intent.CATEGORY_OPENABLE);
+        openDocument.setType("*/*");
+        openDocument.putExtra(Intent.EXTRA_MIME_TYPES,
+                new String[]{"image/jpeg", "image/png", "image/gif", "video/mp4"});
+        openDocument.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            if (openDocument.resolveActivity(getPackageManager()) != null) {
+                startActivityForResult(openDocument, REQUEST_TV_WALLPAPER);
+                return;
+            }
+        } catch (ActivityNotFoundException | SecurityException ignored) { }
+
+        // Skyworth firmware without a picker reaches the launcher's built-in media browser.
+        showIndexedMediaPicker();
     }
 
     /**

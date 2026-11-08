@@ -2470,8 +2470,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 button.setFocusable(false);
             }
         }
-        // Never leave the app-drawer-sized highlight visible during the projection change.
-        // The new card will restore it with its own measured dimensions after layout.
+        // Drop the old tile's focus transform before changing projections. RecyclerView can keep
+        // the focused drawer holder attached while it remeasures the compact Home row; without
+        // clearing it, its larger scale can survive for a frame and the glass inherits that size.
+        View previousFocus = getCurrentFocus();
+        if (previousFocus != null && previousFocus.getId() == R.id.card) {
+            previousFocus.clearFocus();
+            previousFocus.animate().cancel();
+            previousFocus.setScaleX(1f);
+            previousFocus.setScaleY(1f);
+            previousFocus.setTranslationY(0f);
+            previousFocus.setTranslationZ(0f);
+        }
+        // Never leave the old projection's highlight visible during the transition.
         hideGlass();
         glassCardW = 0;
         adapter.setDefaultHomeMode(home);
@@ -2485,16 +2496,35 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             else prayerTimesPanel.hideForNavigation();
         }
         grid.requestLayout();
-        grid.post(() -> {
-            if (isFinishing() || adapter == null) {
+        grid.postOnAnimation(() -> grid.postOnAnimation(() -> {
+            if (isFinishing() || adapter == null || grid == null) {
                 restoreTopBarFocusAfterProjection();
                 return;
             }
             int count = adapter.appCount();
-            if (count > 0) focusTile(Math.max(0, Math.min(focusPosition, count - 1)));
+            if (count > 0) {
+                int target = Math.max(0, Math.min(focusPosition, count - 1));
+                // Wait for the new span count, adapter bind and final child measurement before
+                // requesting focus. This prevents the drawer's larger tile geometry being reused
+                // for even one frame when returning to the smaller Home dock.
+                RecyclerView.ViewHolder holder = grid.findViewHolderForAdapterPosition(target);
+                View card = holder == null ? null : holder.itemView.findViewById(R.id.card);
+                if (card != null && card.getWidth() > 0) {
+                    card.requestFocus();
+                    grid.postOnAnimation(() -> {
+                        if (adapter != null && adapter.isDefaultHomeMode() == home
+                                && card.isFocused() && card.getWidth() > 0) {
+                            onTileFocused(target, card);
+                        }
+                    });
+                } else {
+                    focusTile(target);
+                    grid.postOnAnimation(this::refitGlass);
+                }
+            }
             // Keep top-bar pills out of focus search until RecyclerView has restored the target app tile.
             grid.postOnAnimation(this::restoreTopBarFocusAfterProjection);
-        });
+        }));
     }
 
     private void restoreTopBarFocusAfterProjection() {

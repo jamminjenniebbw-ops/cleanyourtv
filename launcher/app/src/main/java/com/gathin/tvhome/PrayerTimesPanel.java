@@ -61,7 +61,7 @@ final class PrayerTimesPanel {
         PrayerTimesPanel widget = new PrayerTimesPanel(activity, config);
         float density = activity.getResources().getDisplayMetrics().density;
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-                widget.dp(690), widget.dp(274), Gravity.TOP | Gravity.END);
+                widget.dp(540), widget.dp(274), Gravity.TOP | Gravity.END);
         params.topMargin = widget.dp(116);
         params.setMarginEnd(widget.dp(34));
         root.addView(widget.panel, params);

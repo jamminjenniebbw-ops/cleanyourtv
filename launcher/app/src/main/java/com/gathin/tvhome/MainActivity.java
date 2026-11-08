@@ -389,10 +389,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     };
 
+    /** A subtle black edge keeps white interface text legible over bright or similarly coloured wallpapers. */
+    private void applyTextShadows(View view) {
+        if (view instanceof TextView) {
+            ((TextView) view).setShadowLayer(3f * getResources().getDisplayMetrics().density,
+                    0f, 1.5f * getResources().getDisplayMetrics().density, 0xB3000000);
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) applyTextShadows(group.getChildAt(i));
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        applyTextShadows((ViewGroup) findViewById(R.id.root));
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);

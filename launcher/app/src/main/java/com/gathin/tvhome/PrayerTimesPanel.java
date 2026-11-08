@@ -278,7 +278,7 @@ final class PrayerTimesPanel {
             }
             if (result[1] == null) return null;
             if (result[0] == null) result[0] = shift(result[1], -10);
-            if (result[2] == null) result[2] = shift(result[1], -1);
+            if (result[2] == null) result[2] = shift(result[1], 90);
             if (result[3] == null) result[3] = shift(result[2], 20);
             return result;
         }

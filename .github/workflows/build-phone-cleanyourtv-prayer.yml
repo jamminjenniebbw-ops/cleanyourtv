@@ -3,7 +3,7 @@ name: Build CleanYourTV phone app with Bandung prayer times
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, prayer-widget-reference-redesign ]
     paths:
       - ".github/workflows/build-phone-cleanyourtv-prayer.yml"
       - "launcher/**"

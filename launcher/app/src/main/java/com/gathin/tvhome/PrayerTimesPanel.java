@@ -205,7 +205,7 @@ final class PrayerTimesPanel {
         countP.topMargin = dp(6);
         right.addView(countdown, countP);
         countdown.addView(text("Sholat berikutnya", 12, 0xFFE8EAF0, true), wrap());
-        next = text("--:--:--", 23, 0xFFFFD21F, true);
+        next = text("--:--:--", 23, 0xFF48D597, true);
         LinearLayout.LayoutParams nextP = wrap();
         nextP.topMargin = dp(3);
         countdown.addView(next, nextP);
@@ -215,11 +215,11 @@ final class PrayerTimesPanel {
         nextCard.setOrientation(LinearLayout.HORIZONTAL);
         nextCard.setGravity(Gravity.CENTER_VERTICAL);
         nextCard.setPadding(dp(5), dp(4), dp(5), dp(4));
-        GradientDrawable gold = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0xFFFFE88A, 0xFFFFC52E, 0xFFB98508});
-        gold.setCornerRadius(dp(14));
-        gold.setStroke(dp(1), 0xFFFFF0B0);
-        nextCard.setBackground(gold);
+        GradientDrawable nextGreen = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xD9268055, 0xD9186044, 0xD9124937});
+        nextGreen.setCornerRadius(dp(14));
+        nextGreen.setStroke(dp(1), 0xFF36C987);
+        nextCard.setBackground(nextGreen);
         nextCard.setElevation(dp(6));
         LinearLayout.LayoutParams nextCardP = new LinearLayout.LayoutParams(-1, 0, .78f);
         nextCardP.topMargin = dp(6);
@@ -227,6 +227,7 @@ final class PrayerTimesPanel {
         nextPrayerIcon = new SolarIconView(a, 7);
         nextCard.addView(nextPrayerIcon, new LinearLayout.LayoutParams(dp(27), dp(27)));
         View goldLine = divider();
+        goldLine.setBackgroundColor(0xFF36C987);
         LinearLayout.LayoutParams goldLineP = new LinearLayout.LayoutParams(dp(1), dp(30));
         goldLineP.setMargins(dp(3), 0, dp(4), 0);
         nextCard.addView(goldLine, goldLineP);
@@ -236,7 +237,7 @@ final class PrayerTimesPanel {
         nextCard.addView(nextLabels, new LinearLayout.LayoutParams(0, -1, 1f));
         nextPrayerTitle = text("Subuh", 16, Color.WHITE, true);
         nextLabels.addView(nextPrayerTitle, wrap());
-        nextPrayerTime = text("--:--", 14, 0xFFF9F0D2, true);
+        nextPrayerTime = text("--:--", 14, 0xFFDDF8EA, true);
         nextLabels.addView(nextPrayerTime, wrap());
 
         LinearLayout footer = new LinearLayout(a);
@@ -260,7 +261,7 @@ final class PrayerTimesPanel {
     }
 
 
-    /** Draws a consistent solar-position icon without relying on OEM emoji fonts. */
+    /** Outline-only solar progression icons, using one consistent green stroke. */
     private final class SolarIconView extends View {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private int stage;
@@ -274,38 +275,45 @@ final class PrayerTimesPanel {
             setContentDescription(names[stage]);
             invalidate();
         }
+        private void stroke() {
+            paint.setColor(0xFF8DE0B5);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(1.6f, Math.min(getWidth(), getHeight()) * .055f));
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+        }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float w = getWidth(), h = getHeight();
             float size = Math.min(w, h), cx = w / 2f, cy = h / 2f;
-            float r = size * .27f;
-            paint.setStrokeWidth(Math.max(1.5f, size * .055f));
-            paint.setStrokeCap(Paint.Cap.ROUND);
-            paint.setColor(0xFFFFD36A);
+            float r = size * .25f;
+            stroke();
             if (stage == 7) {
-                paint.setStyle(Paint.Style.FILL);
-                canvas.drawCircle(cx, cy, r, paint);
-                paint.setColor(0xFF27384E);
-                canvas.drawCircle(cx + r * .55f, cy - r * .42f, r * .88f, paint);
+                android.graphics.Path crescent = new android.graphics.Path();
+                crescent.moveTo(cx + r * .42f, cy - r * 1.22f);
+                crescent.cubicTo(cx - r * 1.12f, cy - r * 1.10f,
+                        cx - r * 1.22f, cy + r * 1.10f, cx + r * .42f, cy + r * 1.22f);
+                crescent.cubicTo(cx - r * .18f, cy + r * .52f,
+                        cx - r * .18f, cy - r * .52f, cx + r * .42f, cy - r * 1.22f);
+                canvas.drawPath(crescent, paint);
                 return;
             }
-            float horizon = cy + size * .19f;
-            float[] heights = {.10f, .28f, .86f, .96f, 1.0f, .72f, .24f, .10f};
-            float sunY = horizon + r * (1f - heights[stage]) * 1.8f;
-            paint.setStyle(Paint.Style.FILL);
+            float horizon = cy + size * .18f;
+            float[] visible = {.08f, .22f, .78f, .94f, 1.0f, .70f, .20f};
+            float sunY = horizon + r * (1f - visible[Math.min(stage, 6)]) * 1.9f;
             canvas.save();
-            canvas.clipRect(cx - size * .40f, cy - size * .40f, cx + size * .40f, horizon);
+            canvas.clipRect(cx - size * .42f, cy - size * .43f,
+                    cx + size * .42f, horizon);
             canvas.drawCircle(cx, sunY, r, paint);
-            canvas.restore();
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setColor(0xFFE8EDF4);
-            canvas.drawLine(cx - size * .40f, horizon, cx + size * .40f, horizon, paint);
-            if (stage == 4) {
+            if (stage >= 2 && stage <= 5) {
+                float rayBase = Math.min(sunY - r - size * .035f, horizon - size * .06f);
                 for (int k = -1; k <= 1; k++) {
-                    float x = cx + k * size * .20f;
-                    canvas.drawLine(x, cy - size * .39f, x, cy - size * .33f, paint);
+                    float x = cx + k * size * .22f;
+                    canvas.drawLine(x, rayBase - size * .09f, x, rayBase - size * .035f, paint);
                 }
             }
+            canvas.restore();
+            canvas.drawLine(cx - size * .40f, horizon, cx + size * .40f, horizon, paint);
         }
     }
 
@@ -585,8 +593,8 @@ final class PrayerTimesPanel {
         for (int i = 0; i < cards.length; i++) {
             GradientDrawable cardBg = new GradientDrawable();
             cardBg.setCornerRadius(dp(13));
-            cardBg.setColor(i == nextIndex ? 0x24FFD43B : 0x00000000);
-            cardBg.setStroke(dp(i == nextIndex ? 2 : 0), i == nextIndex ? 0xFFFFD52D : Color.TRANSPARENT);
+            cardBg.setColor(i == nextIndex ? 0x2436C987 : 0x00000000);
+            cardBg.setStroke(dp(i == nextIndex ? 2 : 0), i == nextIndex ? 0xFF36C987 : Color.TRANSPARENT);
             cards[i].setBackground(cardBg);
         }
     }

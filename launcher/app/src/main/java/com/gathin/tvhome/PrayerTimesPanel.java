@@ -278,6 +278,7 @@ final class PrayerTimesPanel {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             LocalDate d = LocalDate.now(ZONE);
+            updateDateCard();
             if (!d.equals(loadedDate) && (lastLoadAttemptDate == null || !d.equals(lastLoadAttemptDate))) load();
             else updateNext();
             handler.postDelayed(this, 1_000L);
@@ -415,7 +416,7 @@ final class PrayerTimesPanel {
     private String fetchFullYear(String cityId, int year) throws Exception {
         JSONObject normalized = new JSONObject();
         JSONArray fields = new JSONArray();
-        for (String field : new String[]{"date", "fajr", "dhuhr", "asr", "maghrib", "isha"}) fields.put(field);
+        for (String field : new String[]{"date", "imsak", "fajr", "terbit", "dhuha", "dhuhr", "asr", "maghrib", "isha"}) fields.put(field);
         normalized.put("fields", fields);
         JSONArray days = new JSONArray();
         HashSet<String> seenDates = new HashSet<>();
@@ -435,7 +436,7 @@ final class PrayerTimesPanel {
                 try {
                     if (LocalDate.parse(dateKey).getYear() != year || !seenDates.add(dateKey)) continue;
                 } catch (Exception invalidDate) { continue; }
-                String[] keys = {"subuh", "dzuhur", "ashar", "maghrib", "isya"};
+                String[] keys = {"imsak", "subuh", "terbit", "dhuha", "dzuhur", "ashar", "maghrib", "isya"};
                 JSONArray row = new JSONArray();
                 row.put(dateKey);
                 boolean valid = true;
@@ -486,12 +487,12 @@ final class PrayerTimesPanel {
             JSONObject obj = new JSONObject(json);
             JSONArray fields = obj.getJSONArray("fields"), days = obj.getJSONArray("days");
             int dateCol = field(fields, "date");
-            int[] cols = {field(fields,"fajr"), field(fields,"dhuhr"), field(fields,"asr"), field(fields,"maghrib"), field(fields,"isha")};
+            int[] cols = {field(fields,"imsak"), field(fields,"fajr"), field(fields,"terbit"), field(fields,"dhuha"), field(fields,"dhuhr"), field(fields,"asr"), field(fields,"maghrib"), field(fields,"isha")};
             for (int i=0;i<days.length();i++) {
                 JSONArray day = days.optJSONArray(i);
                 if (day == null || dateCol < 0 || !date.toString().equals(day.optString(dateCol))) continue;
                 todayTimes.clear();
-                for (int p=0;p<5;p++) {
+                for (int p=0;p<8;p++) {
                     String t = cols[p] >= 0 ? day.optString(cols[p], "--:--") : "--:--";
                     todayTimes.add(t); values[p].setText(t);
                 }
@@ -511,11 +512,10 @@ final class PrayerTimesPanel {
 
     private void updateCardStyles(int nextIndex) {
         for (int i = 0; i < cards.length; i++) {
-            boolean highlighted = i == nextIndex;
             GradientDrawable cardBg = new GradientDrawable();
             cardBg.setCornerRadius(dp(13));
-            cardBg.setColor(highlighted ? 0xDD1677D2 : 0x263E5D78);
-            cardBg.setStroke(dp(1), highlighted ? 0xFF75C5FF : 0x557FA9C8);
+            cardBg.setColor(i == nextIndex ? 0x24FFD43B : 0x00000000);
+            cardBg.setStroke(dp(i == nextIndex ? 2 : 0), i == nextIndex ? 0xFFFFD52D : Color.TRANSPARENT);
             cards[i].setBackground(cardBg);
         }
     }
@@ -525,7 +525,7 @@ final class PrayerTimesPanel {
         ZonedDateTime now = ZonedDateTime.now(ZONE);
         int nextIndex = -1;
         ZonedDateTime nextAt = null;
-        for (int i = 0; i < todayTimes.size(); i++) {
+        for (int i = 1; i < todayTimes.size(); i++) {
             try {
                 String[] hm = todayTimes.get(i).split(":");
                 ZonedDateTime candidate = now.toLocalDate()
@@ -540,8 +540,8 @@ final class PrayerTimesPanel {
         }
         if (nextAt == null) {
             try {
-                String[] hm = todayTimes.get(0).split(":");
-                nextIndex = 0;
+                String[] hm = todayTimes.get(1).split(":");
+                nextIndex = 1;
                 nextAt = now.toLocalDate().plusDays(1)
                         .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1]))
                         .atZone(ZONE);
@@ -557,7 +557,9 @@ final class PrayerTimesPanel {
         long hours = seconds / 3600;
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;
-        nextName.setText("Sholat Berikutnya • " + names[nextIndex]);
+        nextName.setText("Sholat Berikutnya");
+        nextPrayerTitle.setText(names[nextIndex]);
+        nextPrayerTime.setText(todayTimes.get(nextIndex));
         next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));
     }
 

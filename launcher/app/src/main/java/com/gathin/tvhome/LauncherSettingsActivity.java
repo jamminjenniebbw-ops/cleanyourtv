@@ -58,6 +58,7 @@ public final class LauncherSettingsActivity extends Activity {
     private static final int REQUEST_TV_WALLPAPER = 7401;
     private static final int REQUEST_MEDIA_PERMISSION = 7402;
     private boolean showPrayerTimes;
+    private String prayerPanelPosition = "right";
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -156,11 +157,21 @@ public final class LauncherSettingsActivity extends Activity {
         });
         prayerTimesChoice = findViewById(R.id.prayerTimesChoice);
         showPrayerTimes = choices.getBoolean("show_prayer_times", true);
+        prayerPanelPosition = choices.getString("prayer_panel_position", "right");
         prayerTimesChoice.setOnClickListener(v -> {
-            showPrayerTimes = !showPrayerTimes;
-            choices.edit().putBoolean("show_prayer_times", showPrayerTimes).apply();
-            changed();
-            refresh();
+            String[] options = {"Kanan", "Kiri", "Hilangkan"};
+            String[] values = {"right", "left", "hidden"};
+            int selected = Math.max(0, Arrays.asList(values).indexOf(prayerPanelPosition));
+            new AlertDialog.Builder(this).setTitle("Posisi Jadwal Sholat")
+                    .setSingleChoiceItems(options, selected, (dialog, which) -> {
+                        prayerPanelPosition = values[which];
+                        showPrayerTimes = !"hidden".equals(prayerPanelPosition);
+                        choices.edit().putString("prayer_panel_position", prayerPanelPosition)
+                                .putBoolean("show_prayer_times", showPrayerTimes).apply();
+                        changed();
+                        refresh();
+                        dialog.dismiss();
+                    }).setNegativeButton(android.R.string.cancel, null).show();
         });
         tvStorageWallpaperChoice = findViewById(R.id.tvStorageWallpaperChoice);
         tvStorageWallpaperChoice.setOnClickListener(v -> chooseWallpaperFromTv());
@@ -869,7 +880,7 @@ public final class LauncherSettingsActivity extends Activity {
         wallpaperChoice.setSelected(!tvStorageCurrent);
         tvStorageWallpaperChoice.setSelected(tvStorageCurrent);
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
-        prayerTimesChoice.setText(getString(R.string.prayer_times_state, getString(showPrayerTimes ? R.string.on : R.string.off)));
+        prayerTimesChoice.setText("Jadwal Sholat: " + ("left".equals(prayerPanelPosition) ? "Kiri" : "hidden".equals(prayerPanelPosition) ? "Hilangkan" : "Kanan"));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 

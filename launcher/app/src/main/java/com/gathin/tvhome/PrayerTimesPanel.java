@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.icu.util.IslamicCalendar;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,9 +32,11 @@ final class PrayerTimesPanel {
     private final Activity activity;
     private final LinearLayout panel;
     private final TextView status, next, nextName;
-    private final TextView[] values = new TextView[5];
-    private final View[] cards = new View[5];
-    private final String[] names = {"Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"};
+    private final TextView[] values = new TextView[8];
+    private final View[] cards = new View[8];
+    private final String[] names = {"Imsak", "Subuh", "Terbit", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya"};
+    private final TextView dateDay, dateNumber, dateMonth, hijriDate, nextPrayerTitle, nextPrayerTime;
+    private boolean positionHidden;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
     private LocalDate loadedDate;
@@ -47,19 +50,20 @@ final class PrayerTimesPanel {
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
      */
-    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean enabled) {
+    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean enabled, String position) {
         PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand);
         p.enabled = enabled;
+        p.positionHidden = "hidden".equals(position);
         float d = a.getResources().getDisplayMetrics().density;
         int screenWidth = a.getResources().getDisplayMetrics().widthPixels;
-        int panelWidth = Math.min((int)(650*d), (int)(screenWidth * .54f));
+        int panelWidth = Math.min((int)(390*d), (int)(screenWidth * .34f));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, -2,
-                Gravity.TOP | Gravity.END);
-        lp.topMargin = (int)(142*d);
-        // Align the panel's right edge with the header controls and dock's visual edge.
-        lp.rightMargin = (int)(56*d);
+                Gravity.TOP | ("left".equals(position) ? Gravity.START : Gravity.END));
+        lp.topMargin = (int)(28*d);
+        if ("left".equals(position)) lp.leftMargin = (int)(28*d);
+        else lp.rightMargin = (int)(28*d);
         root.addView(p.panel, lp);
-        p.panel.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        p.panel.setVisibility(enabled && !p.positionHidden ? View.VISIBLE : View.GONE);
         if (enabled) {
             p.registerNetworkCallback();
             p.load();
@@ -78,12 +82,12 @@ final class PrayerTimesPanel {
     }
 
     void showAtHomeTop() {
-        if (enabled) panel.setVisibility(View.VISIBLE);
+        if (enabled && !positionHidden) panel.setVisibility(View.VISIBLE);
     }
 
     void onGridScrolled(int verticalOffsetPx) {
         // Scrolling must never override the user's master ON/OFF preference.
-        if (!enabled) {
+        if (!enabled || positionHidden) {
             panel.setVisibility(View.GONE);
             return;
         }
@@ -101,102 +105,176 @@ final class PrayerTimesPanel {
         activity = a;
         panel = new LinearLayout(a);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(12), dp(8), dp(12), dp(8));
-        // Match the dock band's appearance from the launcher's live theme/settings.
-        GradientDrawable bg;
-        if (!dockBand) {
-            bg = new GradientDrawable();
-            bg.setColor(Color.TRANSPARENT);
-        } else if (dockGlass) {
-            bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{0x24FFFFFF, 0x0DFFFFFF});
-        } else {
-            int alpha = Math.max(30, Math.min(100, dockOpacity));
-            int color = (Math.round(alpha * 2.55f) << 24) | 0x00141416;
-            bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{color, color});
-        }
-        bg.setCornerRadius(dp(18));
-        bg.setStroke(dp(1), dockBand ? (dockGlass ? 0x38FFFFFF : 0x26FFFFFF) : Color.TRANSPARENT);
+        panel.setPadding(dp(14), dp(12), dp(14), dp(12));
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xE62B303B, 0xD91B202A, 0xE62A303A});
+        bg.setCornerRadius(dp(26));
+        bg.setStroke(dp(1), 0x78FFFFFF);
         panel.setBackground(bg);
-        panel.setElevation(dp(5));
+        panel.setElevation(dp(12));
 
         LinearLayout header = new LinearLayout(a);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        panel.addView(header, new LinearLayout.LayoutParams(-1, -2));
+        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(48)));
+        TextView mosque = text("☾", 28, Color.WHITE, true);
+        mosque.setGravity(Gravity.CENTER);
+        header.addView(mosque, new LinearLayout.LayoutParams(dp(44), -1));
+        View headLine = divider();
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(dp(1), dp(34));
+        hlp.setMargins(dp(7), 0, dp(12), 0);
+        header.addView(headLine, hlp);
+        TextView title = text("Jadwal Sholat", 23, Color.WHITE, true);
+        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
 
-        LinearLayout identity = new LinearLayout(a);
-        identity.setOrientation(LinearLayout.VERTICAL);
-        identity.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(identity, new LinearLayout.LayoutParams(0, -2, 1f));
+        View sep = divider();
+        LinearLayout.LayoutParams sepP = new LinearLayout.LayoutParams(-1, dp(1));
+        sepP.setMargins(0, dp(8), 0, dp(12));
+        panel.addView(sep, sepP);
 
-        TextView title = text("Jadwal Sholat", 15, Color.WHITE, true);
-        identity.addView(title, wrap());
-        TextView location = text("Bandung, Jawa Barat", 10, 0xEAF4FCFF, true);
-        LinearLayout.LayoutParams locp = wrap();
-        locp.topMargin = dp(5);
-        identity.addView(location, locp);
+        LinearLayout date = glassCard();
+        date.setGravity(Gravity.CENTER);
+        date.setPadding(dp(8), dp(8), dp(8), dp(8));
+        panel.addView(date, new LinearLayout.LayoutParams(-1, dp(112)));
+        dateDay = text("", 17, Color.WHITE, true);
+        date.addView(dateDay, wrap());
+        dateNumber = text("", 54, Color.WHITE, true);
+        date.addView(dateNumber, wrap());
+        dateMonth = text("", 16, 0xFFE5E8ED, true);
+        date.addView(dateMonth, wrap());
+        hijriDate = text("", 11, 0xFFD6DCE5, true);
+        date.addView(hijriDate, wrap());
 
-        LinearLayout upcoming = new LinearLayout(a);
-        upcoming.setOrientation(LinearLayout.VERTICAL);
-        upcoming.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        upcoming.setPadding(dp(18), 0, 0, 0);
-        header.addView(upcoming, wrap());
+        LinearLayout countdown = glassCard();
+        countdown.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams countP = new LinearLayout.LayoutParams(-1, dp(88));
+        countP.topMargin = dp(11);
+        panel.addView(countdown, countP);
+        countdown.addView(text("◷  Sholat berikutnya", 14, 0xFFE8EAF0, true), wrap());
+        next = text("--:--:--", 30, 0xFFFFD21F, true);
+        LinearLayout.LayoutParams nextP = wrap();
+        nextP.topMargin = dp(4);
+        countdown.addView(next, nextP);
+        nextName = text("", 1, Color.TRANSPARENT, false);
 
-        nextName = text("Sholat Berikutnya", 9, 0xFFFFD98A, true);
-        nextName.setGravity(Gravity.END);
-        upcoming.addView(nextName, wrap());
-        next = text("--:--:--", 16, 0xFFFFE3A6, true);
-        next.setGravity(Gravity.END);
-        LinearLayout.LayoutParams np = wrap();
-        np.topMargin = dp(4);
-        upcoming.addView(next, np);
+        LinearLayout nextCard = new LinearLayout(a);
+        nextCard.setOrientation(LinearLayout.HORIZONTAL);
+        nextCard.setGravity(Gravity.CENTER_VERTICAL);
+        nextCard.setPadding(dp(12), dp(7), dp(12), dp(7));
+        GradientDrawable gold = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xFFFFD83D, 0xFFB98508});
+        gold.setCornerRadius(dp(21));
+        gold.setStroke(dp(2), 0xFFFFE98A);
+        nextCard.setBackground(gold);
+        nextCard.setElevation(dp(9));
+        LinearLayout.LayoutParams nextCardP = new LinearLayout.LayoutParams(-1, dp(72));
+        nextCardP.topMargin = dp(11);
+        panel.addView(nextCard, nextCardP);
+        TextView nextIcon = text("☾", 27, Color.WHITE, true);
+        nextCard.addView(nextIcon, new LinearLayout.LayoutParams(dp(40), -2));
+        View goldLine = divider();
+        LinearLayout.LayoutParams goldLineP = new LinearLayout.LayoutParams(dp(1), dp(46));
+        goldLineP.setMargins(dp(7), 0, dp(10), 0);
+        nextCard.addView(goldLine, goldLineP);
+        LinearLayout nextLabels = new LinearLayout(a);
+        nextLabels.setOrientation(LinearLayout.VERTICAL);
+        nextCard.addView(nextLabels, new LinearLayout.LayoutParams(0, -2, 1f));
+        nextPrayerTitle = text("Subuh", 19, Color.WHITE, true);
+        nextLabels.addView(nextPrayerTitle, wrap());
+        nextPrayerTime = text("--:--", 15, 0xFFF9F0D2, true);
+        nextLabels.addView(nextPrayerTime, wrap());
+        nextCard.addView(text("›", 32, Color.WHITE, true), wrap());
 
-        View divider = new View(a);
-        divider.setBackgroundColor(0x557FA9C8);
-        LinearLayout.LayoutParams dpv = new LinearLayout.LayoutParams(-1, dp(1));
-        dpv.topMargin = dp(6);
-        dpv.bottomMargin = dp(6);
-        panel.addView(divider, dpv);
-
-        LinearLayout row = new LinearLayout(a);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        panel.addView(row, new LinearLayout.LayoutParams(-1, -2));
-
-        String[] labels = {"Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"};
-        for (int i = 0; i < 5; i++) {
-            LinearLayout card = new LinearLayout(a);
-            card.setOrientation(LinearLayout.VERTICAL);
-            card.setGravity(Gravity.CENTER);
-            card.setPadding(dp(4), dp(4), dp(4), dp(4));
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1f);
-            if (i > 0) cp.leftMargin = dp(6);
-            row.addView(card, cp);
-
-            TextView label = text(labels[i], 10, 0xF0F7FFFF, true);
-            label.setGravity(Gravity.CENTER);
-            card.addView(label, new LinearLayout.LayoutParams(-1, -2));
-            values[i] = text("--:--", 15, Color.WHITE, true);
-            values[i].setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams vp = wrap();
-            vp.topMargin = dp(2);
-            card.addView(values[i], vp);
-            cards[i] = card;
+        LinearLayout list = new LinearLayout(a);
+        list.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams listP = new LinearLayout.LayoutParams(-1, -2);
+        listP.topMargin = dp(11);
+        panel.addView(list, listP);
+        String[] icons = {"☼", "☀", "☼", "☀", "☀", "☁", "☼", "☾"};
+        for (int i = 0; i < names.length; i++) {
+            LinearLayout item = new LinearLayout(a);
+            item.setOrientation(LinearLayout.HORIZONTAL);
+            item.setGravity(Gravity.CENTER_VERTICAL);
+            item.setPadding(dp(8), dp(4), dp(8), dp(4));
+            GradientDrawable itemBg = new GradientDrawable();
+            itemBg.setColor(0x00000000);
+            itemBg.setCornerRadius(dp(13));
+            item.setBackground(itemBg);
+            LinearLayout.LayoutParams itemP = new LinearLayout.LayoutParams(-1, dp(42));
+            if (i > 0) itemP.topMargin = dp(1);
+            list.addView(item, itemP);
+            TextView icon = text(icons[i], 21, Color.WHITE, true);
+            icon.setGravity(Gravity.CENTER);
+            item.addView(icon, new LinearLayout.LayoutParams(dp(40), -1));
+            TextView label = text(names[i], 15, 0xFFF7F8FA, true);
+            item.addView(label, new LinearLayout.LayoutParams(0, -2, 1f));
+            values[i] = text("--:--", 17, Color.WHITE, true);
+            item.addView(values[i], wrap());
+            cards[i] = item;
+            if (i < names.length - 1) {
+                View line = divider();
+                LinearLayout.LayoutParams lineP = new LinearLayout.LayoutParams(-1, dp(1));
+                lineP.setMargins(dp(8), 0, dp(8), 0);
+                list.addView(line, lineP);
+            }
         }
 
-        status = text("Memuat jadwal…", 8, 0xDCEAF3FC, true);
-        LinearLayout.LayoutParams sp = wrap();
-        sp.topMargin = dp(4);
-        panel.addView(status, sp);
+        LinearLayout footer = glassCard();
+        footer.setOrientation(LinearLayout.HORIZONTAL);
+        footer.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams footerP = new LinearLayout.LayoutParams(-1, dp(48));
+        footerP.topMargin = dp(11);
+        panel.addView(footer, footerP);
+        footer.addView(text("●", 16, Color.WHITE, true), wrap());
+        footer.addView(text("  BANDUNG, JAWA BARAT", 16, Color.WHITE, true), wrap());
 
+        status = text("Memuat jadwal…", 8, 0xFFDCE3EC, true);
+        status.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams statusP = wrap();
+        statusP.topMargin = dp(4);
+        panel.addView(status, statusP);
         panel.setFocusable(false);
         panel.setClickable(false);
         panel.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        updateDateCard();
         updateCardStyles(-1);
     }
 
+    private LinearLayout glassCard() {
+        LinearLayout card = new LinearLayout(activity);
+        card.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable shape = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x3CFFFFFF, 0x16FFFFFF});
+        shape.setCornerRadius(dp(22));
+        shape.setStroke(dp(1), 0x4DFFFFFF);
+        card.setBackground(shape);
+        card.setElevation(dp(4));
+        return card;
+    }
+
+    private View divider() {
+        View v = new View(activity);
+        v.setBackgroundColor(0x557FFFFFFF);
+        return v;
+    }
+
+    private void updateDateCard() {
+        LocalDate today = LocalDate.now(ZONE);
+        Locale id = new Locale("id", "ID");
+        dateDay.setText(today.format(DateTimeFormatter.ofPattern("EEEE", id)));
+        dateNumber.setText(String.valueOf(today.getDayOfMonth()));
+        dateMonth.setText(today.format(DateTimeFormatter.ofPattern("MMMM yyyy", id)));
+        try {
+            IslamicCalendar h = new IslamicCalendar(new Date());
+            String[] months = {"Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal",
+                    "Jumadil Akhir", "Rajab", "Syaban", "Ramadan", "Syawal", "Zulkaidah", "Zulhijah"};
+            hijriDate.setText(h.get(Calendar.DAY_OF_MONTH) + " " +
+                    months[Math.max(0, Math.min(11, h.get(Calendar.MONTH)))] + " " +
+                    h.get(Calendar.YEAR) + " H");
+        } catch (Exception ignored) {
+            hijriDate.setText("");
+        }
+    }
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             LocalDate d = LocalDate.now(ZONE);

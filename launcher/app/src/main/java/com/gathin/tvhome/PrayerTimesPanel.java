@@ -59,7 +59,7 @@ final class PrayerTimesPanel {
         int screenHeight = dm.heightPixels;
         // Keep the panel in the free vertical band: below the clock/date and above the Home dock.
         int panelWidth = Math.min((int)(330f * dm.density), (int)(screenWidth * .32f));
-        int panelHeight = (int)(screenHeight * .68f);
+        int panelHeight = (int)(screenHeight * .58f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, panelHeight,
                 Gravity.TOP | ("left".equals(position) ? Gravity.START : Gravity.END));
         lp.topMargin = (int)(screenHeight * .18f);

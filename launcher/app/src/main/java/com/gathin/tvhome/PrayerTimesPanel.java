@@ -6,6 +6,8 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.icu.util.IslamicCalendar;
 import android.graphics.drawable.GradientDrawable;
@@ -36,6 +38,7 @@ final class PrayerTimesPanel {
     private final View[] cards = new View[8];
     private final String[] names = {"Imsak", "Subuh", "Terbit", "Dhuha", "Dzuhur", "Ashar", "Maghrib", "Isya"};
     private final TextView dateDay, dateNumber, dateMonth, hijriDate, nextPrayerTitle, nextPrayerTime;
+    private SolarIconView nextPrayerIcon;
     private boolean positionHidden;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private List<String> todayTimes = new ArrayList<>();
@@ -64,8 +67,8 @@ final class PrayerTimesPanel {
                 ("left".equals(position) ? Gravity.START : Gravity.END) | Gravity.CENTER_VERTICAL);
         // Match the small inset used by the side settings surface rather than leaving a wide screen-edge gap.
         // Align with the Home clock/settings safe margins (rather than the physical screen edge).
-        if ("left".equals(position)) lp.leftMargin = (int)(34f * dm.density);
-        else lp.rightMargin = (int)(34f * dm.density);
+        if ("left".equals(position)) lp.leftMargin = (int)(56f * dm.density);
+        else lp.rightMargin = (int)(56f * dm.density);
         root.addView(p.panel, lp);
         p.panel.setVisibility(enabled && !p.positionHidden ? View.VISIBLE : View.GONE);
         if (enabled) {
@@ -151,7 +154,6 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams listP = new LinearLayout.LayoutParams(0, -1, 1.04f);
         listP.setMargins(dp(6), dp(1), 0, 0);
         // Use monochrome text glyphs from the same icon family to avoid emoji bitmap/box rendering.
-        String[] icons = {"☾", "◔", "☼", "☀", "☀", "◒", "◕", "☾"};
         for (int i = 0; i < names.length; i++) {
             LinearLayout item = new LinearLayout(a);
             item.setOrientation(LinearLayout.HORIZONTAL);
@@ -163,9 +165,8 @@ final class PrayerTimesPanel {
             item.setBackground(itemBg);
             LinearLayout.LayoutParams itemP = new LinearLayout.LayoutParams(-1, 0, 1f);
             list.addView(item, itemP);
-            TextView icon = text(icons[i], 15, Color.WHITE, true);
-            icon.setGravity(Gravity.CENTER);
-            item.addView(icon, new LinearLayout.LayoutParams(dp(23), -1));
+            SolarIconView icon = new SolarIconView(a, i);
+            item.addView(icon, new LinearLayout.LayoutParams(dp(25), dp(25)));
             TextView label = text(names[i], 11, 0xFFF7F8FA, true);
             item.addView(label, new LinearLayout.LayoutParams(0, -2, 1f));
             values[i] = text("--:--", 12, Color.WHITE, true);
@@ -223,9 +224,8 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams nextCardP = new LinearLayout.LayoutParams(-1, 0, .78f);
         nextCardP.topMargin = dp(6);
         right.addView(nextCard, nextCardP);
-        TextView nextIcon = text("☾", 19, Color.WHITE, true);
-        nextIcon.setGravity(Gravity.CENTER);
-        nextCard.addView(nextIcon, new LinearLayout.LayoutParams(dp(23), -1));
+        nextPrayerIcon = new SolarIconView(a, 7);
+        nextCard.addView(nextPrayerIcon, new LinearLayout.LayoutParams(dp(27), dp(27)));
         View goldLine = divider();
         LinearLayout.LayoutParams goldLineP = new LinearLayout.LayoutParams(dp(1), dp(30));
         goldLineP.setMargins(dp(3), 0, dp(4), 0);
@@ -257,6 +257,56 @@ final class PrayerTimesPanel {
         panel.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         updateDateCard();
         updateCardStyles(-1);
+    }
+
+
+    /** Draws a consistent solar-position icon without relying on OEM emoji fonts. */
+    private final class SolarIconView extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private int stage;
+        SolarIconView(Activity a, int stage) {
+            super(a);
+            this.stage = stage;
+            setContentDescription(names[Math.max(0, Math.min(7, stage))]);
+        }
+        void setStage(int value) {
+            stage = Math.max(0, Math.min(7, value));
+            setContentDescription(names[stage]);
+            invalidate();
+        }
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float w = getWidth(), h = getHeight();
+            float size = Math.min(w, h), cx = w / 2f, cy = h / 2f;
+            float r = size * .27f;
+            paint.setStrokeWidth(Math.max(1.5f, size * .055f));
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setColor(0xFFFFD36A);
+            if (stage == 7) {
+                paint.setStyle(Paint.Style.FILL);
+                canvas.drawCircle(cx, cy, r, paint);
+                paint.setColor(0xFF27384E);
+                canvas.drawCircle(cx + r * .55f, cy - r * .42f, r * .88f, paint);
+                return;
+            }
+            float horizon = cy + size * .19f;
+            float[] heights = {.10f, .28f, .86f, .96f, 1.0f, .72f, .24f, .10f};
+            float sunY = horizon + r * (1f - heights[stage]) * 1.8f;
+            paint.setStyle(Paint.Style.FILL);
+            canvas.save();
+            canvas.clipRect(cx - size * .40f, cy - size * .40f, cx + size * .40f, horizon);
+            canvas.drawCircle(cx, sunY, r, paint);
+            canvas.restore();
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(0xFFE8EDF4);
+            canvas.drawLine(cx - size * .40f, horizon, cx + size * .40f, horizon, paint);
+            if (stage == 4) {
+                for (int k = -1; k <= 1; k++) {
+                    float x = cx + k * size * .20f;
+                    canvas.drawLine(x, cy - size * .39f, x, cy - size * .33f, paint);
+                }
+            }
+        }
     }
 
     private LinearLayout glassCard() {
@@ -528,13 +578,7 @@ final class PrayerTimesPanel {
     }
 
     private void updateNextPrayerIcon(int nextIndex) {
-        // Keep the next-prayer card glyph identical to its matching timetable row.
-        String[] glyphs = {"☾", "◔", "☼", "☀", "☀", "◒", "◕", "☾"};
-        if (nextIndex >= 0 && nextIndex < glyphs.length) {
-            // The card's first child is the icon; retain the same compact glyph family.
-            View child = ((LinearLayout) nextPrayerTitle.getParent().getParent()).getChildAt(0);
-            if (child instanceof TextView) ((TextView) child).setText(glyphs[nextIndex]);
-        }
+        if (nextPrayerIcon != null) nextPrayerIcon.setStage(nextIndex);
     }
 
     private void updateCardStyles(int nextIndex) {
@@ -575,6 +619,7 @@ final class PrayerTimesPanel {
             } catch (Exception ignored) { }
         }
         updateCardStyles(nextIndex);
+        updateNextPrayerIcon(nextIndex);
         updateNextPrayerIcon(nextIndex);
         if (nextAt == null) {
             nextName.setText("Sholat Berikutnya");

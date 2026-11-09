@@ -61,10 +61,10 @@ final class PrayerTimesPanel {
         int panelWidth = Math.min((int)(330f * dm.density), (int)(screenWidth * .32f));
         int panelHeight = (int)(screenHeight * .58f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, panelHeight,
-                Gravity.TOP | ("left".equals(position) ? Gravity.START : Gravity.END));
-        lp.topMargin = (int)(screenHeight * .18f);
-        if ("left".equals(position)) lp.leftMargin = (int)(screenWidth * .035f);
-        else lp.rightMargin = (int)(screenWidth * .035f);
+                ("left".equals(position) ? Gravity.START : Gravity.END) | Gravity.CENTER_VERTICAL);
+        // Match the small inset used by the side settings surface rather than leaving a wide screen-edge gap.
+        if ("left".equals(position)) lp.leftMargin = (int)(16f * dm.density);
+        else lp.rightMargin = (int)(16f * dm.density);
         root.addView(p.panel, lp);
         p.panel.setVisibility(enabled && !p.positionHidden ? View.VISIBLE : View.GONE);
         if (enabled) {
@@ -120,7 +120,7 @@ final class PrayerTimesPanel {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
         panel.addView(header, new LinearLayout.LayoutParams(-1, dp(34)));
-        TextView mosque = text("☾", 23, Color.WHITE, true);
+        TextView mosque = text("🕌", 23, Color.WHITE, true);
         mosque.setGravity(Gravity.CENTER);
         header.addView(mosque, new LinearLayout.LayoutParams(dp(34), -1));
         View headLine = divider();
@@ -135,7 +135,7 @@ final class PrayerTimesPanel {
         sepP.setMargins(0, dp(4), 0, dp(7));
         panel.addView(sep, sepP);
 
-        // Reference composition: prayer timetable on the LEFT, date/countdown/next prayer on the RIGHT.
+        // Reference composition: date/countdown/next prayer on the LEFT, prayer timetable on the RIGHT.
         LinearLayout content = new LinearLayout(a);
         content.setOrientation(LinearLayout.HORIZONTAL);
         content.setGravity(Gravity.TOP);
@@ -144,9 +144,8 @@ final class PrayerTimesPanel {
         LinearLayout list = new LinearLayout(a);
         list.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams listP = new LinearLayout.LayoutParams(0, -1, 1.04f);
-        listP.setMargins(0, dp(1), dp(6), 0);
-        content.addView(list, listP);
-        String[] icons = {"☼", "☀", "☼", "☀", "☀", "☁", "☼", "☾"};
+        listP.setMargins(dp(6), dp(1), 0, 0);
+        String[] icons = {"🌙", "🌅", "🌄", "☀️", "☀️", "🌤️", "🌇", "🌙"};
         for (int i = 0; i < names.length; i++) {
             LinearLayout item = new LinearLayout(a);
             item.setOrientation(LinearLayout.HORIZONTAL);
@@ -177,8 +176,9 @@ final class PrayerTimesPanel {
         LinearLayout right = new LinearLayout(a);
         right.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams rightP = new LinearLayout.LayoutParams(0, -1, .96f);
-        rightP.setMargins(dp(3), 0, 0, 0);
+        rightP.setMargins(0, 0, dp(3), 0);
         content.addView(right, rightP);
+        content.addView(list, listP);
 
         LinearLayout date = glassCard();
         date.setGravity(Gravity.CENTER);
@@ -191,15 +191,14 @@ final class PrayerTimesPanel {
         dateMonth = text("", 11, 0xFFE5E8ED, true);
         date.addView(dateMonth, wrap());
         hijriDate = text("", 9, 0xFFD6DCE5, true);
-        date.addView(hijriDate, wrap());
 
         LinearLayout countdown = glassCard();
         countdown.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams countP = new LinearLayout.LayoutParams(-1, 0, .88f);
         countP.topMargin = dp(6);
         right.addView(countdown, countP);
-        countdown.addView(text("Sholat berikutnya", 10, 0xFFE8EAF0, true), wrap());
-        next = text("--:--:--", 20, 0xFFFFD21F, true);
+        countdown.addView(text("Sholat berikutnya", 12, 0xFFE8EAF0, true), wrap());
+        next = text("--:--:--", 23, 0xFFFFD21F, true);
         LinearLayout.LayoutParams nextP = wrap();
         nextP.topMargin = dp(3);
         countdown.addView(next, nextP);
@@ -218,7 +217,7 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams nextCardP = new LinearLayout.LayoutParams(-1, 0, .78f);
         nextCardP.topMargin = dp(6);
         right.addView(nextCard, nextCardP);
-        TextView nextIcon = text("☾", 19, Color.WHITE, true);
+        TextView nextIcon = text("🕌", 19, Color.WHITE, true);
         nextIcon.setGravity(Gravity.CENTER);
         nextCard.addView(nextIcon, new LinearLayout.LayoutParams(dp(23), -1));
         View goldLine = divider();
@@ -229,11 +228,10 @@ final class PrayerTimesPanel {
         nextLabels.setOrientation(LinearLayout.VERTICAL);
         nextLabels.setGravity(Gravity.CENTER_VERTICAL);
         nextCard.addView(nextLabels, new LinearLayout.LayoutParams(0, -1, 1f));
-        nextPrayerTitle = text("Subuh", 12, Color.WHITE, true);
+        nextPrayerTitle = text("Subuh", 14, Color.WHITE, true);
         nextLabels.addView(nextPrayerTitle, wrap());
-        nextPrayerTime = text("--:--", 11, 0xFFF9F0D2, true);
+        nextPrayerTime = text("--:--", 12, 0xFFF9F0D2, true);
         nextLabels.addView(nextPrayerTime, wrap());
-        nextCard.addView(text("›", 20, Color.WHITE, true), wrap());
 
         LinearLayout footer = new LinearLayout(a);
         footer.setOrientation(LinearLayout.HORIZONTAL);
@@ -283,9 +281,7 @@ final class PrayerTimesPanel {
             IslamicCalendar h = new IslamicCalendar(new Date());
             String[] months = {"Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal",
                     "Jumadil Akhir", "Rajab", "Syaban", "Ramadan", "Syawal", "Zulkaidah", "Zulhijah"};
-            hijriDate.setText(h.get(Calendar.DAY_OF_MONTH) + " " +
-                    months[Math.max(0, Math.min(11, h.get(Calendar.MONTH)))] + " " +
-                    h.get(Calendar.YEAR) + " H");
+            hijriDate.setText("");
         } catch (Exception ignored) {
             hijriDate.setText("");
         }
@@ -585,6 +581,7 @@ final class PrayerTimesPanel {
         t.setTextColor(color);
         t.setIncludeFontPadding(false);
         t.setTypeface(Typeface.create(medium ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
+        t.setShadowLayer(dp(2), 0f, dp(1), 0xB3000000);
         return t;
     }
     private LinearLayout.LayoutParams wrap() { return new LinearLayout.LayoutParams(-2,-2); }

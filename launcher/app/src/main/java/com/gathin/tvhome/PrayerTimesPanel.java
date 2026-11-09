@@ -525,7 +525,7 @@ final class PrayerTimesPanel {
         ZonedDateTime now = ZonedDateTime.now(ZONE);
         int nextIndex = -1;
         ZonedDateTime nextAt = null;
-        for (int i = 1; i < todayTimes.size(); i++) {
+        for (int i : new int[]{1, 4, 5, 6, 7}) {
             try {
                 String[] hm = todayTimes.get(i).split(":");
                 ZonedDateTime candidate = now.toLocalDate()

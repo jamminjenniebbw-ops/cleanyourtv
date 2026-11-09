@@ -63,8 +63,9 @@ final class PrayerTimesPanel {
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, panelHeight,
                 ("left".equals(position) ? Gravity.START : Gravity.END) | Gravity.CENTER_VERTICAL);
         // Match the small inset used by the side settings surface rather than leaving a wide screen-edge gap.
-        if ("left".equals(position)) lp.leftMargin = (int)(16f * dm.density);
-        else lp.rightMargin = (int)(16f * dm.density);
+        // Align with the Home clock/settings safe margins (rather than the physical screen edge).
+        if ("left".equals(position)) lp.leftMargin = (int)(34f * dm.density);
+        else lp.rightMargin = (int)(34f * dm.density);
         root.addView(p.panel, lp);
         p.panel.setVisibility(enabled && !p.positionHidden ? View.VISIBLE : View.GONE);
         if (enabled) {
@@ -109,10 +110,14 @@ final class PrayerTimesPanel {
         panel = new LinearLayout(a);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(9), dp(7), dp(9), dp(7));
+        // Match the dock glass/opacity controls so this panel follows the existing TV appearance settings.
+        int baseAlpha = Math.max(40, Math.min(220, dockOpacity));
+        int bgColor = Color.argb(baseAlpha, 24, 35, 52);
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0xD9273447, 0xD51A2940, 0xE61B3556});
+                new int[]{dockGlass ? Color.argb(Math.min(245, baseAlpha + 12), 39, 52, 70) : bgColor,
+                          bgColor, Color.argb(Math.min(245, baseAlpha + 8), 27, 42, 61)});
         bg.setCornerRadius(dp(22));
-        bg.setStroke(dp(1), 0x80FFFFFF);
+        bg.setStroke(dp(1), dockBand ? 0x80FFFFFF : 0x55FFFFFF);
         panel.setBackground(bg);
         panel.setElevation(dp(10));
 
@@ -145,7 +150,8 @@ final class PrayerTimesPanel {
         list.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams listP = new LinearLayout.LayoutParams(0, -1, 1.04f);
         listP.setMargins(dp(6), dp(1), 0, 0);
-        String[] icons = {"🌙", "🌅", "🌄", "☀️", "☀️", "🌤️", "🌇", "🌙"};
+        // Use monochrome text glyphs from the same icon family to avoid emoji bitmap/box rendering.
+        String[] icons = {"☾", "◔", "☼", "☀", "☀", "◒", "◕", "☾"};
         for (int i = 0; i < names.length; i++) {
             LinearLayout item = new LinearLayout(a);
             item.setOrientation(LinearLayout.HORIZONTAL);
@@ -217,7 +223,7 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams nextCardP = new LinearLayout.LayoutParams(-1, 0, .78f);
         nextCardP.topMargin = dp(6);
         right.addView(nextCard, nextCardP);
-        TextView nextIcon = text("🕌", 19, Color.WHITE, true);
+        TextView nextIcon = text("☾", 19, Color.WHITE, true);
         nextIcon.setGravity(Gravity.CENTER);
         nextCard.addView(nextIcon, new LinearLayout.LayoutParams(dp(23), -1));
         View goldLine = divider();
@@ -228,9 +234,9 @@ final class PrayerTimesPanel {
         nextLabels.setOrientation(LinearLayout.VERTICAL);
         nextLabels.setGravity(Gravity.CENTER_VERTICAL);
         nextCard.addView(nextLabels, new LinearLayout.LayoutParams(0, -1, 1f));
-        nextPrayerTitle = text("Subuh", 14, Color.WHITE, true);
+        nextPrayerTitle = text("Subuh", 16, Color.WHITE, true);
         nextLabels.addView(nextPrayerTitle, wrap());
-        nextPrayerTime = text("--:--", 12, 0xFFF9F0D2, true);
+        nextPrayerTime = text("--:--", 14, 0xFFF9F0D2, true);
         nextLabels.addView(nextPrayerTime, wrap());
 
         LinearLayout footer = new LinearLayout(a);
@@ -521,6 +527,16 @@ final class PrayerTimesPanel {
         return -1;
     }
 
+    private void updateNextPrayerIcon(int nextIndex) {
+        // Keep the next-prayer card glyph identical to its matching timetable row.
+        String[] glyphs = {"☾", "◔", "☼", "☀", "☀", "◒", "◕", "☾"};
+        if (nextIndex >= 0 && nextIndex < glyphs.length) {
+            // The card's first child is the icon; retain the same compact glyph family.
+            View child = ((LinearLayout) nextPrayerTitle.getParent().getParent()).getChildAt(0);
+            if (child instanceof TextView) ((TextView) child).setText(glyphs[nextIndex]);
+        }
+    }
+
     private void updateCardStyles(int nextIndex) {
         for (int i = 0; i < cards.length; i++) {
             GradientDrawable cardBg = new GradientDrawable();
@@ -559,6 +575,7 @@ final class PrayerTimesPanel {
             } catch (Exception ignored) { }
         }
         updateCardStyles(nextIndex);
+        updateNextPrayerIcon(nextIndex);
         if (nextAt == null) {
             nextName.setText("Sholat Berikutnya");
             next.setText("--:--:--");

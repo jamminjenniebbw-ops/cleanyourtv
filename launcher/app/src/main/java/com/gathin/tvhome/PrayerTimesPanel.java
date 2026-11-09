@@ -254,7 +254,7 @@ final class PrayerTimesPanel {
 
     private View divider() {
         View v = new View(activity);
-        v.setBackgroundColor(0x557FFFFFFF);
+        v.setBackgroundColor(0x55FFFFFF);
         return v;
     }
 

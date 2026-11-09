@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -890,7 +891,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("builtin_wallpaper_choice")
                 || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times")
-                || choices.contains("default_home_apps")
+                || choices.contains("prayer_panel_position") || choices.contains("default_home_apps")
 ;
     }
 

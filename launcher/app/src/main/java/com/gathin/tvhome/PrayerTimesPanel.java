@@ -166,7 +166,7 @@ final class PrayerTimesPanel {
             LinearLayout.LayoutParams itemP = new LinearLayout.LayoutParams(-1, 0, 1f);
             list.addView(item, itemP);
             SolarIconView icon = new SolarIconView(a, i);
-            item.addView(icon, new LinearLayout.LayoutParams(dp(25), dp(25)));
+            item.addView(icon, new LinearLayout.LayoutParams(dp(30), dp(30)));
             TextView label = text(names[i], 11, 0xFFF7F8FA, true);
             item.addView(label, new LinearLayout.LayoutParams(0, -2, 1f));
             values[i] = text("--:--", 12, Color.WHITE, true);
@@ -225,7 +225,7 @@ final class PrayerTimesPanel {
         nextCardP.topMargin = dp(6);
         right.addView(nextCard, nextCardP);
         nextPrayerIcon = new SolarIconView(a, 7);
-        nextCard.addView(nextPrayerIcon, new LinearLayout.LayoutParams(dp(27), dp(27)));
+        nextCard.addView(nextPrayerIcon, new LinearLayout.LayoutParams(dp(30), dp(30)));
         View goldLine = divider();
         goldLine.setBackgroundColor(0xFF36C987);
         LinearLayout.LayoutParams goldLineP = new LinearLayout.LayoutParams(dp(1), dp(30));
@@ -261,59 +261,37 @@ final class PrayerTimesPanel {
     }
 
 
-    /** Outline-only solar progression icons, using one consistent green stroke. */
+    /** Reference-matched icons extracted from the user's supplied NU-style schedule image. */
     private final class SolarIconView extends View {
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private int stage;
         SolarIconView(Activity a, int stage) {
             super(a);
-            this.stage = stage;
-            setContentDescription(names[Math.max(0, Math.min(7, stage))]);
+            setStage(stage);
         }
         void setStage(int value) {
             stage = Math.max(0, Math.min(7, value));
             setContentDescription(names[stage]);
             invalidate();
         }
-        private void stroke() {
-            paint.setColor(0xFF8DE0B5);
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(Math.max(1.6f, Math.min(getWidth(), getHeight()) * .055f));
-            paint.setStrokeCap(Paint.Cap.ROUND);
-            paint.setStrokeJoin(Paint.Join.ROUND);
+        private int iconResource() {
+            switch (stage) {
+                case 0: return R.drawable.prayer_icon_imsak;
+                case 1: return R.drawable.prayer_icon_subuh;
+                case 2: return R.drawable.prayer_icon_terbit;
+                case 3: return R.drawable.prayer_icon_dhuha;
+                case 4: return R.drawable.prayer_icon_zuhur;
+                case 5: return R.drawable.prayer_icon_ashar;
+                case 6: return R.drawable.prayer_icon_maghrib;
+                default: return R.drawable.prayer_icon_isya;
+            }
         }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float w = getWidth(), h = getHeight();
-            float size = Math.min(w, h), cx = w / 2f, cy = h / 2f;
-            float r = size * .25f;
-            stroke();
-            if (stage == 7) {
-                android.graphics.Path crescent = new android.graphics.Path();
-                crescent.moveTo(cx + r * .42f, cy - r * 1.22f);
-                crescent.cubicTo(cx - r * 1.12f, cy - r * 1.10f,
-                        cx - r * 1.22f, cy + r * 1.10f, cx + r * .42f, cy + r * 1.22f);
-                crescent.cubicTo(cx - r * .18f, cy + r * .52f,
-                        cx - r * .18f, cy - r * .52f, cx + r * .42f, cy - r * 1.22f);
-                canvas.drawPath(crescent, paint);
-                return;
-            }
-            float horizon = cy + size * .18f;
-            float[] visible = {.08f, .22f, .78f, .94f, 1.0f, .70f, .20f};
-            float sunY = horizon + r * (1f - visible[Math.min(stage, 6)]) * 1.9f;
-            canvas.save();
-            canvas.clipRect(cx - size * .42f, cy - size * .43f,
-                    cx + size * .42f, horizon);
-            canvas.drawCircle(cx, sunY, r, paint);
-            if (stage >= 2 && stage <= 5) {
-                float rayBase = Math.min(sunY - r - size * .035f, horizon - size * .06f);
-                for (int k = -1; k <= 1; k++) {
-                    float x = cx + k * size * .22f;
-                    canvas.drawLine(x, rayBase - size * .09f, x, rayBase - size * .035f, paint);
-                }
-            }
-            canvas.restore();
-            canvas.drawLine(cx - size * .40f, horizon, cx + size * .40f, horizon, paint);
+            android.graphics.drawable.Drawable icon = activity.getDrawable(iconResource());
+            if (icon == null) return;
+            int inset = dp(1);
+            icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
+            icon.draw(canvas);
         }
     }
 
@@ -627,7 +605,6 @@ final class PrayerTimesPanel {
             } catch (Exception ignored) { }
         }
         updateCardStyles(nextIndex);
-        updateNextPrayerIcon(nextIndex);
         updateNextPrayerIcon(nextIndex);
         if (nextAt == null) {
             nextName.setText("Sholat Berikutnya");

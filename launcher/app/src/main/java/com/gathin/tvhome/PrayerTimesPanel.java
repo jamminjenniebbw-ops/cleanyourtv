@@ -18,6 +18,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.ImageView;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
@@ -128,9 +129,11 @@ final class PrayerTimesPanel {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
         panel.addView(header, new LinearLayout.LayoutParams(-1, dp(34)));
-        TextView mosque = text("🕌", 23, Color.WHITE, true);
-        mosque.setGravity(Gravity.CENTER);
-        header.addView(mosque, new LinearLayout.LayoutParams(dp(34), -1));
+        ImageView mosque = new ImageView(a);
+        mosque.setImageResource(R.drawable.prayer_icon_mosque);
+        mosque.setColorFilter(0xFF48D597);
+        mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        header.addView(mosque, new LinearLayout.LayoutParams(dp(27), dp(27)));
         View headLine = divider();
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(dp(1), dp(25));
         hlp.setMargins(dp(4), 0, dp(8), 0);
@@ -165,8 +168,8 @@ final class PrayerTimesPanel {
             item.setBackground(itemBg);
             LinearLayout.LayoutParams itemP = new LinearLayout.LayoutParams(-1, 0, 1f);
             list.addView(item, itemP);
-            SolarIconView icon = new SolarIconView(a, i);
-            item.addView(icon, new LinearLayout.LayoutParams(dp(30), dp(30)));
+            SolarIconView icon = new SolarIconView(a, i, 0xFF48D597);
+            item.addView(icon, new LinearLayout.LayoutParams(dp(21), dp(21)));
             TextView label = text(names[i], 11, 0xFFF7F8FA, true);
             item.addView(label, new LinearLayout.LayoutParams(0, -2, 1f));
             values[i] = text("--:--", 12, Color.WHITE, true);
@@ -224,8 +227,8 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams nextCardP = new LinearLayout.LayoutParams(-1, 0, .78f);
         nextCardP.topMargin = dp(6);
         right.addView(nextCard, nextCardP);
-        nextPrayerIcon = new SolarIconView(a, 7);
-        nextCard.addView(nextPrayerIcon, new LinearLayout.LayoutParams(dp(30), dp(30)));
+        nextPrayerIcon = new SolarIconView(a, 7, Color.WHITE);
+        nextCard.addView(nextPrayerIcon, new LinearLayout.LayoutParams(dp(35), dp(35)));
         View goldLine = divider();
         goldLine.setBackgroundColor(0xFF36C987);
         LinearLayout.LayoutParams goldLineP = new LinearLayout.LayoutParams(dp(1), dp(30));
@@ -264,8 +267,10 @@ final class PrayerTimesPanel {
     /** Reference-matched icons extracted from the user's supplied NU-style schedule image. */
     private final class SolarIconView extends View {
         private int stage;
-        SolarIconView(Activity a, int stage) {
+        private final int tint;
+        SolarIconView(Activity a, int stage, int tint) {
             super(a);
+            this.tint = tint;
             setStage(stage);
         }
         void setStage(int value) {
@@ -290,6 +295,8 @@ final class PrayerTimesPanel {
             android.graphics.drawable.Drawable icon = activity.getDrawable(iconResource());
             if (icon == null) return;
             int inset = dp(1);
+            icon = icon.mutate();
+            icon.setTint(tint);
             icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
             icon.draw(canvas);
         }
@@ -570,9 +577,9 @@ final class PrayerTimesPanel {
     private void updateCardStyles(int nextIndex) {
         for (int i = 0; i < cards.length; i++) {
             GradientDrawable cardBg = new GradientDrawable();
-            cardBg.setCornerRadius(dp(13));
+            cardBg.setCornerRadius(dp(7));
             cardBg.setColor(i == nextIndex ? 0x2436C987 : 0x00000000);
-            cardBg.setStroke(dp(i == nextIndex ? 2 : 0), i == nextIndex ? 0xFF36C987 : Color.TRANSPARENT);
+            cardBg.setStroke(dp(i == nextIndex ? 1 : 0), i == nextIndex ? 0xFF36C987 : Color.TRANSPARENT);
             cards[i].setBackground(cardBg);
         }
     }

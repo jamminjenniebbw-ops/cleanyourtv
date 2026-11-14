@@ -284,6 +284,8 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams dayP = wrap();
         dayP.topMargin = dp(5);
         heading.addView(dateDay, dayP);
+        // Model 2 follows the reference: Gregorian date on one line, Hijri date below it.
+        dateDay.setVisibility(View.GONE);
         LinearLayout dateLine = new LinearLayout(activity);
         dateLine.setOrientation(LinearLayout.HORIZONTAL);
         dateLine.setGravity(Gravity.CENTER_VERTICAL);
@@ -302,12 +304,14 @@ final class PrayerTimesPanel {
         LinearLayout mosqueBox = new LinearLayout(activity);
         mosqueBox.setOrientation(LinearLayout.VERTICAL);
         mosqueBox.setGravity(Gravity.CENTER);
-        header.addView(mosqueBox, new LinearLayout.LayoutParams(dp(76), -1));
-        TextView place = cleanText("BANDUNG", 10, true);
+        header.addView(mosqueBox, new LinearLayout.LayoutParams(dp(96), -1));
+        TextView place = cleanText("BANDUNG &\nSEKITARNYA", 8, true);
         place.setGravity(Gravity.CENTER);
+        place.setMaxLines(2);
+        place.setLineSpacing(dp(1), 1f);
         mosqueBox.addView(place, wrap());
         MosqueGlyph mosque = new MosqueGlyph(activity);
-        LinearLayout.LayoutParams mosqueP = new LinearLayout.LayoutParams(dp(46), dp(46));
+        LinearLayout.LayoutParams mosqueP = new LinearLayout.LayoutParams(dp(42), dp(42));
         mosqueP.topMargin = dp(2);
         mosqueBox.addView(mosque, mosqueP);
 

@@ -512,7 +512,7 @@ final class PrayerTimesPanel {
         Locale id = new Locale("id", "ID");
         dateDay.setText(today.format(DateTimeFormatter.ofPattern("EEEE", id)));
         dateNumber.setText(String.valueOf(today.getDayOfMonth()));
-        dateMonth.setText(today.format(DateTimeFormatter.ofPattern(modelTwo ? "MMMM yyyy" : "MMMM yyyy", id)));
+        dateMonth.setText(today.format(DateTimeFormatter.ofPattern("MMMM yyyy", id)));
         try {
             IslamicCalendar h = new IslamicCalendar(new Date());
             String[] months = {"Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal",
@@ -792,7 +792,7 @@ final class PrayerTimesPanel {
         ZonedDateTime now = ZonedDateTime.now(ZONE);
         int nextIndex = -1;
         ZonedDateTime nextAt = null;
-        for (int i = 0; i < todayTimes.size(); i++) {
+        for (int i = modelTwo ? 0 : 1; i < todayTimes.size(); i++) {
             try {
                 String[] hm = todayTimes.get(i).split(":");
                 ZonedDateTime candidate = now.toLocalDate()
@@ -804,10 +804,11 @@ final class PrayerTimesPanel {
                 }
             } catch (Exception ignored) { }
         }
-        if (nextAt == null && !tomorrowTimes.isEmpty()) {
+        int tomorrowIndex = modelTwo ? 0 : 1;
+        if (nextAt == null && tomorrowTimes.size() > tomorrowIndex) {
             try {
-                String[] hm = tomorrowTimes.get(0).split(":");
-                nextIndex = 0;
+                String[] hm = tomorrowTimes.get(tomorrowIndex).split(":");
+                nextIndex = tomorrowIndex;
                 nextAt = now.toLocalDate().plusDays(1)
                         .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1])).atZone(ZONE);
             } catch (Exception ignored) { }
@@ -827,8 +828,8 @@ final class PrayerTimesPanel {
         long remainingSeconds = seconds % 60;
         nextName.setText(modelTwo ? "Selanjutnya" : "Sholat Berikutnya");
         nextPrayerTitle.setText(modelTwo ? "Menuju " + names[nextIndex] : names[nextIndex]);
-        nextPrayerTime.setText(nextIndex == 0 && nextAt.toLocalDate().isAfter(now.toLocalDate())
-                ? tomorrowTimes.get(0) : todayTimes.get(nextIndex));
+        nextPrayerTime.setText(nextAt.toLocalDate().isAfter(now.toLocalDate())
+                ? tomorrowTimes.get(nextIndex) : todayTimes.get(nextIndex));
         next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));
         if (progressTrack != null) {
             ZonedDateTime previous = null;

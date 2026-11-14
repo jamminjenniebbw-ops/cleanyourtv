@@ -37,6 +37,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
+    private TextView prayerPanelChoice;
+    private int prayerPanelDesign = 1;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -60,6 +62,7 @@ public final class LauncherSettingsActivity extends Activity {
         dockOpacity = config.dockOpacity;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
+        prayerPanelDesign = choices.getInt("prayer_panel_design", 1);
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -104,6 +107,8 @@ public final class LauncherSettingsActivity extends Activity {
             reverseRow(rowChoices);
             reverseRow(dockChoices);
         }
+        prayerPanelChoice = findViewById(R.id.prayerPanelChoice);
+        prayerPanelChoice.setOnClickListener(v -> showPrayerPanelPicker());
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
         animationsChoice = findViewById(R.id.animationsChoice);
@@ -138,13 +143,15 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
+                    .remove("prayer_panel_design").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             dockOpacity = current.dockOpacity;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
+            prayerPanelDesign = 1;
             changed();
             refresh();
         });
@@ -163,6 +170,26 @@ public final class LauncherSettingsActivity extends Activity {
         LinearLayout row = (LinearLayout) views[0].getParent();
         row.removeAllViews();
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+    private void showPrayerPanelPicker() {
+        String[] labels = {
+                getString(R.string.prayer_panel_model_one),
+                getString(R.string.prayer_panel_model_two)
+        };
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.prayer_panel_design_label)
+                .setSingleChoiceItems(labels, prayerPanelDesign - 1, (dialog, which) -> {
+                    dialog.dismiss();
+                    int selected = which + 1;
+                    if (prayerPanelDesign == selected) return;
+                    prayerPanelDesign = selected;
+                    choices.edit().putInt("prayer_panel_design", selected).apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showWallpaperPicker() {
@@ -291,6 +318,8 @@ public final class LauncherSettingsActivity extends Activity {
         advancedChoice.setEnabled(animations);
         advancedChoice.setAlpha(animations ? 1f : 0.5f);
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
+        prayerPanelChoice.setText(getString(R.string.prayer_panel_design_state,
+                getString(prayerPanelDesign == 2 ? R.string.prayer_panel_model_two : R.string.prayer_panel_model_one)));
         wallpaperChoice.setText(getString(R.string.wallpaper_state,
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : wallpaperCurrent != null ? wallpaperCurrent

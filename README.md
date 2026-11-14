@@ -620,7 +620,7 @@ and a wallpaper.
   - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
     default**. A pick holds that picture and stops the rotation until you choose Theme default, press
     Follow theme, or push the theme again.
-  - **Prayer schedule panel**: choose **Model 1 — Original** or **Model 2 — Glass**. The second design
+  - **Prayer schedule panel design**: choose **Model 1 — Original** or **Model 2 — Glass**. The second design
     shows Gregorian and Hijri dates, all eight schedule entries and a countdown to the next entry.
   - **Animations** on or off, and **Advanced effects** (tile lift, icon zoom and smooth ambient-colour
     transitions; they may use more memory) once animations are on.

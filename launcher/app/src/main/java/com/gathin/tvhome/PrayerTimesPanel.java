@@ -273,7 +273,7 @@ final class PrayerTimesPanel {
         LinearLayout header = new LinearLayout(activity);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(82)));
+        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(86)));
         LinearLayout heading = new LinearLayout(activity);
         heading.setOrientation(LinearLayout.VERTICAL);
         heading.setGravity(Gravity.CENTER_VERTICAL);
@@ -320,7 +320,7 @@ final class PrayerTimesPanel {
         countBg.setCornerRadius(dp(24));
         countBg.setStroke(dp(1), 0x66FFFFFF);
         countdownCard.setBackground(countBg);
-        LinearLayout.LayoutParams countCardP = new LinearLayout.LayoutParams(-1, dp(156));
+        LinearLayout.LayoutParams countCardP = new LinearLayout.LayoutParams(-1, dp(164));
         countCardP.topMargin = dp(9);
         panel.addView(countdownCard, countCardP);
         nextName = cleanText("Selanjutnya", 15, false);
@@ -362,7 +362,7 @@ final class PrayerTimesPanel {
             rowBg.setColor(Color.TRANSPARENT);
             rowBg.setCornerRadius(dp(18));
             row.setBackground(rowBg);
-            LinearLayout.LayoutParams rowP = new LinearLayout.LayoutParams(-1, dp(43));
+            LinearLayout.LayoutParams rowP = new LinearLayout.LayoutParams(-1, dp(48));
             if (i > 0) rowP.topMargin = dp(1);
             schedule.addView(row, rowP);
             cards[i] = row;
@@ -503,7 +503,7 @@ final class PrayerTimesPanel {
 
     private View divider() {
         View v = new View(activity);
-        v.setBackgroundColor(0x557FFFFFFF);
+        v.setBackgroundColor(0x55FFFFFF);
         return v;
     }
 

@@ -771,7 +771,7 @@ final class PrayerTimesPanel {
         ZonedDateTime now = ZonedDateTime.now(ZONE);
         int nextIndex = -1;
         ZonedDateTime nextAt = null;
-        for (int i : new int[]{1, 4, 5, 6, 7}) {
+        for (int i = 0; i < names.length; i++) {
             try {
                 String[] hm = todayTimes.get(i).split(":");
                 ZonedDateTime candidate = now.toLocalDate()
@@ -786,8 +786,8 @@ final class PrayerTimesPanel {
         }
         if (nextAt == null) {
             try {
-                String[] hm = todayTimes.get(1).split(":");
-                nextIndex = 1;
+                String[] hm = todayTimes.get(0).split(":");
+                nextIndex = 0;
                 nextAt = now.toLocalDate().plusDays(1)
                         .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1]))
                         .atZone(ZONE);
@@ -796,7 +796,7 @@ final class PrayerTimesPanel {
         updateCardStyles(nextIndex);
         updateNextPrayerIcon(nextIndex);
         if (nextAt == null) {
-            nextName.setText("Sholat berikutnya");
+            nextName.setText("Hitung Mundur Waktu Sholat Berikutnya");
             nextPrayerTitle.setText("--");
             nextPrayerTime.setText("--:--");
             next.setText("--:--:--");
@@ -808,21 +808,13 @@ final class PrayerTimesPanel {
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;
         nextName.setText("Sholat berikutnya");
-        nextPrayerTitle.setText(names[nextIndex]);
+        nextPrayerTitle.setText("Menuju " + names[nextIndex] + ":");
         nextPrayerTime.setText(todayTimes.get(nextIndex));
         next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));
         if (progressTrack != null) {
             ZonedDateTime previous = null;
             int previousIndex = -1;
-            switch (nextIndex) {
-                case 4: previousIndex = 1; break;
-                case 5: previousIndex = 4; break;
-                case 6: previousIndex = 5; break;
-                case 7: previousIndex = 6; break;
-                case 1:
-                    if (nextAt.toLocalDate().isAfter(now.toLocalDate())) previousIndex = 7;
-                    break;
-            }
+            previousIndex = nextIndex == 0 ? 7 : nextIndex - 1;
             if (previousIndex >= 0) {
                 try {
                     String[] hm = todayTimes.get(previousIndex).split(":");

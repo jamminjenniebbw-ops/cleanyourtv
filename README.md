@@ -618,7 +618,10 @@ and a wallpaper.
   - **Apps per row** 4, 5, 6 or 7; **Rows below dock** 0 to 3, how many rows of tiles stay visible under the
     dock band; **Dock band opacity** 100%, 70%, 50% or 30%. The last two only do anything while the dock is
     its own row (`dock_row`, on by default).
+  - **Apps on default homescreen: %1$d**: choose the number of app tiles shown by the original home screen.
   - **Prayer schedule**: shows or hides the prayer-times panel on Home; it uses the published timetable for the selected city when available.
+  - **Desain Panel Jadwal Sholat**: choose **Model 1 (Desain Lama)** or **Model 2 (Desain Baru)**. Model 2 uses the transparent glass-style panel, a two-line Gregorian/Hijri date, a next-prayer countdown and progress bar, and eight highlighted schedule rows.
+  - **Choose wallpaper from TV storage**: import a supported JPG, PNG, GIF or MP4 wallpaper stored on the TV.
   - **Scheduled background**: turns time-based wallpaper selection on or off. The schedule and its JPG, GIF
     or MP4 files are prepared in the CleanYourTV phone app; when off, the existing single-wallpaper behaviour
     remains active.

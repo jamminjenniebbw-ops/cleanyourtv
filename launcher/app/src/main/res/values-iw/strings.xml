@@ -144,4 +144,21 @@
     <string name="race_countdown_hours">%1$d שע׳ %2$d דק׳</string>
     <string name="race_countdown_days">%1$d ימ׳ %2$d שע׳</string>
     <string name="last_opened">פתיחה אחרונה: %1$s</string>
+    <string name="default_home_apps_label">יישומים במסך הבית המקורי</string>
+    <string name="default_home_apps_state">יישומים במסך הבית המקורי: %1$d</string>
+    <string name="default_home_apps_title">בחירת מספר היישומים במסך הבית המקורי</string>
+    <string name="wallpaper_from_theme_collection">טפט מאוסף ערכת הנושא</string>
+    <string name="builtin_wallpaper_title">טפטים מובנים</string>
+    <string name="builtin_wallpaper_state">טפט מובנה: %1$s</string>
+    <string name="builtin_wallpaper_item">טפט %1$d</string>
+    <string name="builtin_wallpaper_selected">טפט %1$d</string>
+    <string name="wallpaper_from_tv">בחירת טפט מאחסון הטלוויזיה</string>
+    <string name="wallpaper_picker_unavailable">אין בורר קבצים זמין בטלוויזיה זו</string>
+    <string name="wallpaper_unsupported">יש לבחור קובץ JPG, PNG, GIF או MP4</string>
+    <string name="wallpaper_imported">הטפט הועתק לטלוויזיה</string>
+    <string name="wallpaper_import_failed">לא ניתן להעתיק את הטפט</string>
+    <string name="prayer_panel_design_label">עיצוב לוח זמני התפילה</string>
+    <string name="prayer_panel_model_one">דגם 1 (העיצוב הישן)</string>
+    <string name="prayer_panel_model_two">דגם 2 (עיצוב זכוכית)</string>
+    <string name="prayer_panel_design_state">עיצוב לוח זמני התפילה: %1$s</string>
 </resources>

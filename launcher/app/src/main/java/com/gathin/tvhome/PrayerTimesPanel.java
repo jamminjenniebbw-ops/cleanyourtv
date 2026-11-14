@@ -350,7 +350,7 @@ final class PrayerTimesPanel {
         long remainder = seconds % 60;
         countdown.setText(String.format(Locale.ROOT, "%02d:%02d:%02d",
                 hours, minutes, remainder));
-        nextLabel.setText("Menuju " + NAMES[targetIndex]);
+        nextLabel.setText((modelTwo ? "Menuju " : "Menuju waktu sholat ") + NAMES[targetIndex]);
         if (progressTrack != null) {
             LocalDateTime previous = targetIndex == 0
                     ? at(now.toLocalDate().minusDays(1), "23:59")
@@ -592,7 +592,8 @@ final class PrayerTimesPanel {
             } else {
                 canvas.drawCircle(cx, cy, radius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(1.7f*d);
+                paint.setStrokeWidth((referenceStyle ? 0.85f : 1.7f)*d);
+                if (referenceStyle) paint.setColor(0x66000000);
                 for (int a = 0; a < 8; a++) {
                     double angle = Math.PI * a / 4d;
                     float x1 = cx + (float)Math.cos(angle) * 9*d;

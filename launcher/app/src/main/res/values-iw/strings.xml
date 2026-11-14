@@ -115,6 +115,10 @@
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="rows_below_dock_label">שורות מתחת לשורת המועדפים</string>
     <string name="wallpaper_label">טפט</string>
+    <string name="prayer_panel_design_label">עיצוב לוח זמני התפילה</string>
+    <string name="prayer_panel_design_state">לוח זמני התפילה: %1$s</string>
+    <string name="prayer_panel_model_one">דגם 1 — מקורי</string>
+    <string name="prayer_panel_model_two">דגם 2 — זכוכית</string>
     <string name="wallpaper_state">טפט: %1$s</string>
     <string name="wallpaper_none">ללא</string>
     <string name="wallpaper_applied">הטפט שונה</string>

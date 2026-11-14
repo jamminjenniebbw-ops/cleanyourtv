@@ -52,6 +52,10 @@
     <string name="rows_below_dock_label">Rows below dock</string>
     <string name="dock_opacity_label">Dock band opacity</string>
     <string name="wallpaper_label">Wallpaper</string>
+    <string name="prayer_panel_design_label">Prayer schedule panel design</string>
+    <string name="prayer_panel_design_state">Prayer schedule panel: %1$s</string>
+    <string name="prayer_panel_model_one">Model 1 — Original</string>
+    <string name="prayer_panel_model_two">Model 2 — Glass</string>
     <string name="wallpaper_state">Wallpaper: %1$s</string>
     <string name="wallpaper_none">None</string>
     <string name="wallpaper_applied">Wallpaper changed</string>

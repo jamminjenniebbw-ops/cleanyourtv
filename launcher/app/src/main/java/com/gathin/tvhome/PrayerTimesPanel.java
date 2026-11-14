@@ -304,6 +304,8 @@ final class PrayerTimesPanel {
         header.addView(heading, headingP);
         heading.addView(cleanText("Jadwal Sholat", 25, true), wrap());
         TextView subtitle = cleanText("Tanggal Hijriah & Masehi", 13, false);
+        // Model 2 displays both calendar dates in this header line.
+        dateDay = subtitle;
         LinearLayout.LayoutParams subtitleP = wrap();
         subtitleP.topMargin = dp(5);
         heading.addView(subtitle, subtitleP);
@@ -492,6 +494,24 @@ final class PrayerTimesPanel {
     private void updateDateCard() {
         LocalDate today = LocalDate.now(ZONE);
         Locale id = new Locale("id", "ID");
+        if (modelTwo) {
+            String hijri = "Tanggal Hijriah tidak tersedia";
+            try {
+                IslamicCalendar h = new IslamicCalendar(new Date());
+                h.setTimeZone(android.icu.util.TimeZone.getTimeZone(ZONE.getId()));
+                String[] months = {"Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal",
+                        "Jumadil Akhir", "Rajab", "Syaban", "Ramadan", "Syawal", "Zulkaidah", "Zulhijah"};
+                int day = h.get(IslamicCalendar.DAY_OF_MONTH);
+                int month = h.get(IslamicCalendar.MONTH);
+                int year = h.get(IslamicCalendar.YEAR);
+                hijri = day + " " + months[Math.max(0, Math.min(months.length - 1, month))] + " " + year + " H";
+            } catch (Exception ignored) { }
+            if (dateDay != null) {
+                dateDay.setText(today.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", id))
+                        + " • " + hijri);
+            }
+            return;
+        }
         dateDay.setText(today.format(DateTimeFormatter.ofPattern("EEEE", id)));
         dateNumber.setText(String.valueOf(today.getDayOfMonth()));
         dateMonth.setText(today.format(DateTimeFormatter.ofPattern("MMMM yyyy", id)));

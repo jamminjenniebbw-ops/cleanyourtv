@@ -116,4 +116,8 @@
     <string name="wallpaper_unsupported">Pilih file JPG, PNG, GIF, atau MP4</string>
     <string name="wallpaper_imported">Wallpaper berhasil disalin ke TV</string>
     <string name="wallpaper_import_failed">Wallpaper tidak dapat disalin</string>
+    <string name="prayer_panel_design_label">Desain Panel Jadwal Sholat</string>
+    <string name="prayer_panel_model_one">Model 1 (Desain Lama)</string>
+    <string name="prayer_panel_model_two">Model 2 (Desain Baru)</string>
+    <string name="prayer_panel_design_state">Desain Panel Jadwal Sholat: %1$s</string>
 </resources>

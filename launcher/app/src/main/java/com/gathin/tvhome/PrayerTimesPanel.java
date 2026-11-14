@@ -352,9 +352,18 @@ final class PrayerTimesPanel {
                 hours, minutes, remainder));
         nextLabel.setText((modelTwo ? "Menuju " : "Menuju waktu sholat ") + NAMES[targetIndex]);
         if (progressTrack != null) {
-            LocalDateTime previous = targetIndex == 0
-                    ? at(now.toLocalDate().minusDays(1), "23:59")
-                    : at(now.toLocalDate(), todayTimes[targetIndex - 1]);
+            LocalDateTime previous;
+            if (targetIndex == 0 && target.toLocalDate().isAfter(now.toLocalDate())) {
+                // After today's Isya, the next target is tomorrow's Imsak. Measure progress
+                // from today's Isya rather than from yesterday's end-of-day marker.
+                previous = at(now.toLocalDate(), todayTimes[todayTimes.length - 1]);
+            } else if (targetIndex == 0) {
+                // Before today's Imsak, use a safe start-of-day fallback because yesterday's
+                // schedule may not be loaded in this panel instance.
+                previous = at(now.toLocalDate().minusDays(1), "23:59");
+            } else {
+                previous = at(now.toLocalDate(), todayTimes[targetIndex - 1]);
+            }
             if (previous == null || !previous.isBefore(target)) previous = now;
             long total = Math.max(1L, Duration.between(previous, target).getSeconds());
             long elapsed = Math.max(0L, Duration.between(previous, now).getSeconds());

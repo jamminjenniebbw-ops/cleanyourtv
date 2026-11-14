@@ -32,6 +32,10 @@
     <string name="dock_opacity_label">Opasitas pita dock</string>
     <string name="rows_below_dock_label">Baris di bawah dock</string>
     <string name="wallpaper_label">Wallpaper</string>
+    <string name="prayer_panel_design_label">Model panel jadwal sholat</string>
+    <string name="prayer_panel_design_state">Panel jadwal sholat: %1$s</string>
+    <string name="prayer_panel_model_one">Model 1 — Desain lama</string>
+    <string name="prayer_panel_model_two">Model 2 — Desain kaca</string>
     <string name="wallpaper_state">Wallpaper: %1$s</string>
     <string name="wallpaper_none">Tidak ada</string>
     <string name="wallpaper_applied">Wallpaper diubah</string>

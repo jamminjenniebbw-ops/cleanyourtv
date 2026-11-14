@@ -542,7 +542,7 @@ final class PrayerTimesPanel {
         dateMonth.setText(today.format(DateTimeFormatter.ofPattern("MMMM yyyy", id)));
         try {
             IslamicCalendar h = new IslamicCalendar(new Date());
-            h.setTimeZone(TimeZone.getTimeZone(ZONE));
+            h.setTimeZone(android.icu.util.TimeZone.getTimeZone(ZONE.getId()));
             String[] months = {"Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal",
                     "Jumadil Akhir", "Rajab", "Syaban", "Ramadan", "Syawal", "Zulkaidah", "Zulhijah"};
             int day = h.get(IslamicCalendar.DAY_OF_MONTH);

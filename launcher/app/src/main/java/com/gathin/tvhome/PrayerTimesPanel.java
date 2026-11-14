@@ -29,6 +29,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.chrono.HijrahDate;
+import java.time.temporal.ChronoField;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,9 +47,12 @@ final class PrayerTimesPanel {
 
     private final Activity activity;
     private final LinearLayout panel;
-    private final TextView countdown;
-    private final TextView nextLabel;
-    private final TextView locationDate;
+    private TextView countdown;
+    private TextView nextLabel;
+    private TextView locationDate;
+    private TextView dateGregorian, dateHijri;
+    private ProgressTrack progressTrack;
+    private final boolean modelTwo;
     private final TextView[] timeValues = new TextView[8];
     private final View[] rows = new View[8];
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -60,10 +65,11 @@ final class PrayerTimesPanel {
     static void attach(Activity activity, FrameLayout root, Config config) {
         PrayerTimesPanel widget = new PrayerTimesPanel(activity, config);
         float density = activity.getResources().getDisplayMetrics().density;
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-                widget.dp(540), widget.dp(274), Gravity.TOP | Gravity.END);
-        params.topMargin = widget.dp(116);
-        params.setMarginEnd(widget.dp(34));
+        FrameLayout.LayoutParams params = widget.modelTwo
+                ? new FrameLayout.LayoutParams(widget.dp(440), widget.dp(760), Gravity.TOP | Gravity.END)
+                : new FrameLayout.LayoutParams(widget.dp(540), widget.dp(274), Gravity.TOP | Gravity.END);
+        params.topMargin = widget.modelTwo ? widget.dp(42) : widget.dp(116);
+        params.setMarginEnd(widget.modelTwo ? widget.dp(42) : widget.dp(34));
         root.addView(widget.panel, params);
         widget.load();
         widget.handler.post(widget.tick);
@@ -71,7 +77,13 @@ final class PrayerTimesPanel {
 
     private PrayerTimesPanel(Activity activity, Config config) {
         this.activity = activity;
+        modelTwo = activity.getSharedPreferences(Config.SETTINGS_NAME, 0).getInt("prayer_panel_design", 1) == 2;
         panel = new LinearLayout(activity);
+        if (modelTwo) {
+            buildModelTwo();
+            updateLocationDate(LocalDate.now(ZONE));
+            return;
+        }
         panel.setOrientation(LinearLayout.HORIZONTAL);
         panel.setGravity(Gravity.CENTER_VERTICAL);
         panel.setPadding(dp(20), dp(15), dp(18), dp(15));
@@ -338,7 +350,16 @@ final class PrayerTimesPanel {
         long remainder = seconds % 60;
         countdown.setText(String.format(Locale.ROOT, "%02d:%02d:%02d",
                 hours, minutes, remainder));
-        nextLabel.setText("Menuju waktu " + NAMES[targetIndex]);
+        nextLabel.setText("Menuju " + NAMES[targetIndex]);
+        if (progressTrack != null) {
+            LocalDateTime previous = targetIndex == 0
+                    ? at(now.toLocalDate().minusDays(1), "23:59")
+                    : at(now.toLocalDate(), todayTimes[targetIndex - 1]);
+            if (previous == null || !previous.isBefore(target)) previous = now;
+            long total = Math.max(1L, Duration.between(previous, target).getSeconds());
+            long elapsed = Math.max(0L, Duration.between(previous, now).getSeconds());
+            progressTrack.setProgress(Math.min(1f, elapsed / (float) total));
+        }
         highlight(targetIndex);
     }
 
@@ -357,8 +378,8 @@ final class PrayerTimesPanel {
             GradientDrawable bg = new GradientDrawable();
             bg.setCornerRadius(dp(24));
             if (i == selected) {
-                bg.setColor(0x1EFFFFFF);
-                bg.setStroke(dp(2), 0x75FFFFFF);
+                bg.setColor(modelTwo ? 0xD9FFFFFF : 0x1EFFFFFF);
+                if (!modelTwo) bg.setStroke(dp(2), 0x75FFFFFF);
             } else {
                 bg.setColor(Color.TRANSPARENT);
             }
@@ -371,9 +392,130 @@ final class PrayerTimesPanel {
     }
 
     private void updateLocationDate(LocalDate date) {
-        String formatted = date.format(DateTimeFormatter.ofPattern("dd MMM",
-                new Locale("id", "ID")));
+        if (modelTwo) {
+            Locale id = new Locale("id", "ID");
+            dateGregorian.setText(date.format(DateTimeFormatter.ofPattern("d MMMM yyyy", id)));
+            dateHijri.setText(formatHijri(date));
+            return;
+        }
+        String formatted = date.format(DateTimeFormatter.ofPattern("dd MMM", new Locale("id", "ID")));
         locationDate.setText("Bandung • " + formatted);
+    }
+
+    private String formatHijri(LocalDate date) {
+        try {
+            HijrahDate h = HijrahDate.from(date);
+            String[] months = {"Muharram","Safar","Rabiul Awal","Rabiul Akhir","Jumadil Awal","Jumadil Akhir","Rajab","Syaban","Ramadhan","Syawal","Dzulkaidah","Dzulhijjah"};
+            int m = h.get(ChronoField.MONTH_OF_YEAR);
+            return h.get(ChronoField.DAY_OF_MONTH) + " " + months[Math.max(0, Math.min(11, m - 1))]
+                    + " " + h.get(ChronoField.YEAR) + " H";
+        } catch (Exception ignored) { return "Tanggal Hijriah"; }
+    }
+
+    private void buildModelTwo() {
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(18), dp(20), dp(18));
+        GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xD9EAF4FF, 0xCDEBD9D3, 0xC9B8C7DD});
+        glass.setCornerRadius(dp(34)); glass.setStroke(dp(2), 0x66FFFFFF);
+        panel.setBackground(glass); panel.setElevation(dp(5));
+
+        LinearLayout header = new LinearLayout(activity);
+        header.setGravity(Gravity.CENTER_VERTICAL); header.setOrientation(LinearLayout.HORIZONTAL);
+        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(104)));
+        LinearLayout heading = new LinearLayout(activity);
+        heading.setOrientation(LinearLayout.VERTICAL); heading.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(heading, new LinearLayout.LayoutParams(0, -1, 1f));
+        TextView title = cleanText("Jadwal Sholat", 29, true); heading.addView(title, wrap());
+        dateGregorian = cleanText("--", 18, false);
+        LinearLayout.LayoutParams g = wrap(); g.topMargin = dp(5); heading.addView(dateGregorian, g);
+        dateHijri = cleanText("--", 15, false);
+        LinearLayout.LayoutParams h = wrap(); h.topMargin = dp(3); heading.addView(dateHijri, h);
+        LinearLayout rhs = new LinearLayout(activity); rhs.setGravity(Gravity.CENTER);
+        rhs.setOrientation(LinearLayout.VERTICAL);
+        header.addView(rhs, new LinearLayout.LayoutParams(dp(100), -1));
+        TextView place = cleanText("Bandung & Sekitarnya", 12, true); place.setGravity(Gravity.CENTER);
+        rhs.addView(place, wrap());
+        MosqueGlyph mosque = new MosqueGlyph(activity);
+        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(dp(54), dp(54)); mp.topMargin = dp(4);
+        rhs.addView(mosque, mp);
+
+        LinearLayout card = new LinearLayout(activity);
+        card.setOrientation(LinearLayout.VERTICAL); card.setGravity(Gravity.CENTER);
+        card.setPadding(dp(12), dp(15), dp(12), dp(15));
+        GradientDrawable cb = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xDDF9F1EF, 0xDDF3D9D5});
+        cb.setCornerRadius(dp(30)); cb.setStroke(dp(1), 0x66FFFFFF); card.setBackground(cb);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, dp(205)); cp.topMargin = dp(10);
+        panel.addView(card, cp);
+        TextView caption = cleanText("Selanjutnya", 19, false); card.addView(caption, wrap());
+        nextLabel = cleanText("Menuju --", 28, false);
+        LinearLayout.LayoutParams np = wrap(); np.topMargin = dp(7); card.addView(nextLabel, np);
+        countdown = cleanText("--:--:--", 42, false);
+        LinearLayout.LayoutParams tp = wrap(); tp.topMargin = dp(3); card.addView(countdown, tp);
+        progressTrack = new ProgressTrack(activity);
+        LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(-1, dp(20)); pp.topMargin = dp(12);
+        card.addView(progressTrack, pp);
+
+        LinearLayout schedule = new LinearLayout(activity); schedule.setOrientation(LinearLayout.VERTICAL);
+        schedule.setPadding(dp(9), dp(9), dp(9), dp(9));
+        GradientDrawable sb = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xDDF7EAE7, 0xCDE5DCE5});
+        sb.setCornerRadius(dp(30)); sb.setStroke(dp(1), 0x55FFFFFF); schedule.setBackground(sb);
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(-1, 0, 1f); sl.topMargin = dp(12);
+        panel.addView(schedule, sl);
+        for (int i = 0; i < NAMES.length; i++) {
+            LinearLayout row = new LinearLayout(activity); row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setOrientation(LinearLayout.HORIZONTAL); row.setPadding(dp(12), dp(2), dp(12), dp(2));
+            GradientDrawable rb = new GradientDrawable(); rb.setCornerRadius(dp(24)); rb.setColor(Color.TRANSPARENT);
+            row.setBackground(rb); schedule.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f)); rows[i] = row;
+            Glyph icon = new Glyph(activity, i, true);
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(27), dp(27)); ip.rightMargin = dp(12);
+            row.addView(icon, ip);
+            TextView name = cleanText(NAMES[i], 19, false);
+            row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+            timeValues[i] = cleanText("--:--", 19, false); timeValues[i].setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+            row.addView(timeValues[i], new LinearLayout.LayoutParams(dp(82), -2));
+        }
+        panel.setFocusable(false); panel.setClickable(false);
+        panel.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+    }
+
+    private TextView cleanText(String value, int size, boolean bold) {
+        TextView v = text(value, size, 0xFF101014, bold);
+        v.setShadowLayer(0, 0, 0, Color.TRANSPARENT);
+        return v;
+    }
+
+    private static final class ProgressTrack extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private float progress;
+        ProgressTrack(Activity a) { super(a); }
+        void setProgress(float p) { progress = Math.max(0f, Math.min(1f, p)); invalidate(); }
+        private float d(float v) { return v * getResources().getDisplayMetrics().density; }
+        @Override protected void onDraw(Canvas c) {
+            float y = getHeight()/2f, l = d(5), r = getWidth()-d(5), x = l+(r-l)*progress;
+            paint.setStyle(Paint.Style.STROKE); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeWidth(d(6));
+            paint.setColor(0x33808080); c.drawLine(l,y,r,y,paint);
+            paint.setColor(0xFF111111); c.drawLine(l,y,x,y,paint);
+            paint.setStyle(Paint.Style.FILL); paint.setColor(0xFFF7E9E5); c.drawCircle(x,y,d(9),paint);
+            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(d(2)); paint.setColor(0xFF111111); c.drawCircle(x,y,d(9),paint);
+        }
+    }
+
+    private static final class MosqueGlyph extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        MosqueGlyph(Activity a) { super(a); }
+        @Override protected void onDraw(Canvas c) {
+            float d=getResources().getDisplayMetrics().density, x=getWidth()/2f, y=getHeight()/2f;
+            p.setColor(Color.BLACK); p.setStyle(Paint.Style.FILL);
+            c.drawRect(x-18*d,y-1*d,x+18*d,y+17*d,p);
+            c.drawArc(x-15*d,y-22*d,x+15*d,y+9*d,180,180,true,p);
+            c.drawRect(x-23*d,y-17*d,x-19*d,y+17*d,p); c.drawRect(x+19*d,y-17*d,x+23*d,y+17*d,p);
+            c.drawRect(x-27*d,y-24*d,x-24*d,y+17*d,p); c.drawRect(x+24*d,y-24*d,x+27*d,y+17*d,p);
+            c.drawCircle(x,y-20*d,4*d,p);
+            p.setColor(0xFFECE5E3); c.drawRect(x-3*d,y+6*d,x+3*d,y+17*d,p);
+        }
     }
 
     private TextView text(String value, int size, int color, boolean bold) {
@@ -398,11 +540,14 @@ final class PrayerTimesPanel {
 
     private static final class Glyph extends View {
         private final int kind;
+        private final boolean referenceStyle;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        Glyph(Activity activity, int kind) {
+        Glyph(Activity activity, int kind) { this(activity, kind, false); }
+        Glyph(Activity activity, int kind, boolean referenceStyle) {
             super(activity);
             this.kind = kind;
+            this.referenceStyle = referenceStyle;
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         }
@@ -413,7 +558,7 @@ final class PrayerTimesPanel {
             float cx = getWidth() / 2f;
             float cy = getHeight() / 2f;
             float radius = 6.2f * d;
-            int gold = (kind == 0 || kind == 6 || kind == 7) ? 0xFFC7A7FF : 0xFFFFD34E;
+            int gold = referenceStyle ? 0xFF080808 : (kind == 0 || kind == 6 || kind == 7) ? 0xFFC7A7FF : 0xFFFFD34E;
             if (kind == 0 || kind == 6 || kind == 7) {
                 paint.setColor(gold);
                 paint.setStyle(Paint.Style.FILL);
@@ -425,7 +570,8 @@ final class PrayerTimesPanel {
                         cx + 5*d, cy - 8*d);
                 canvas.drawPath(crescent, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(1.7f*d);
+                paint.setStrokeWidth((referenceStyle ? 0.85f : 1.7f)*d);
+                if (referenceStyle) paint.setColor(0x66000000);
                 canvas.drawLine(cx - 10*d, cy + 10*d, cx + 10*d, cy + 10*d, paint);
                 canvas.drawLine(cx - 7*d, cy + 13*d, cx + 7*d, cy + 13*d, paint);
                 return;
@@ -439,7 +585,8 @@ final class PrayerTimesPanel {
                 canvas.drawCircle(cx, cy + 1*d, radius, paint);
                 canvas.restore();
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(1.6f*d);
+                paint.setStrokeWidth((referenceStyle ? 0.85f : 1.6f)*d);
+                if (referenceStyle) paint.setColor(0x66000000);
                 canvas.drawLine(cx - 12*d, cy + 4*d, cx + 12*d, cy + 4*d, paint);
                 canvas.drawLine(cx - 9*d, cy + 7*d, cx + 9*d, cy + 7*d, paint);
             } else {

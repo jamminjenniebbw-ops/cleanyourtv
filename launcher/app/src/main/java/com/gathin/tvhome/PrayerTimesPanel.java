@@ -797,7 +797,7 @@ final class PrayerTimesPanel {
         updateNextPrayerIcon(nextIndex);
         if (nextAt == null) {
             nextName.setText("Hitung Mundur Waktu Sholat Berikutnya");
-            nextPrayerTitle.setText("--");
+            nextPrayerTitle.setText("Menuju --:");
             nextPrayerTime.setText("--:--");
             next.setText("--:--:--");
             if (progressTrack != null) progressTrack.setProgress(0f);
@@ -807,7 +807,7 @@ final class PrayerTimesPanel {
         long hours = seconds / 3600;
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;
-        nextName.setText("Sholat berikutnya");
+        nextName.setText("Hitung Mundur Waktu Sholat Berikutnya");
         nextPrayerTitle.setText("Menuju " + names[nextIndex] + ":");
         nextPrayerTime.setText(todayTimes.get(nextIndex));
         next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));

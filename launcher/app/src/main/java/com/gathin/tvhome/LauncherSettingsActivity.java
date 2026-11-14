@@ -53,6 +53,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
     private TextView prayerTimesChoice;
+    private TextView prayerPanelDesignChoice;
+    private int prayerPanelDesign = 1;
     private TextView tvStorageWallpaperChoice;
     private TextView defaultHomeAppsChoice;
     private int defaultHomeApps = 3;
@@ -174,6 +176,9 @@ public final class LauncherSettingsActivity extends Activity {
                         dialog.dismiss();
                     }).setNegativeButton(android.R.string.cancel, null).show();
         });
+        prayerPanelDesign = choices.getInt("prayer_panel_design", 1);
+        prayerPanelDesignChoice = findViewById(R.id.prayerPanelDesignChoice);
+        prayerPanelDesignChoice.setOnClickListener(v -> showPrayerPanelDesignPicker());
         tvStorageWallpaperChoice = findViewById(R.id.tvStorageWallpaperChoice);
         tvStorageWallpaperChoice.setOnClickListener(v -> chooseWallpaperFromTv());
         // Remove the unfinished scheduled-wallpaper preference left by older builds.
@@ -189,7 +194,8 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).remove("builtin_wallpaper_choice")
                     .remove("tv_storage_wallpaper_choice")
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).remove("default_home_apps").commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).remove("default_home_apps")
+                    .remove("prayer_panel_design").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -197,6 +203,7 @@ public final class LauncherSettingsActivity extends Activity {
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             defaultHomeApps = 3;
+            prayerPanelDesign = 1;
             changed();
             refresh();
         });
@@ -844,6 +851,26 @@ public final class LauncherSettingsActivity extends Activity {
         refresh();
     }
 
+    private void showPrayerPanelDesignPicker() {
+        String[] labels = {
+                getString(R.string.prayer_panel_model_one),
+                getString(R.string.prayer_panel_model_two)
+        };
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.prayer_panel_design_label)
+                .setSingleChoiceItems(labels, prayerPanelDesign - 1, (dialog, which) -> {
+                    int selected = which + 1;
+                    dialog.dismiss();
+                    if (prayerPanelDesign == selected) return;
+                    prayerPanelDesign = selected;
+                    choices.edit().putInt("prayer_panel_design", selected).apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void refresh() {
         for (int i = 0; i < columnChoices.length; i++) {
             columnChoices[i].setSelected(columns == i + 4);
@@ -882,6 +909,8 @@ public final class LauncherSettingsActivity extends Activity {
         tvStorageWallpaperChoice.setSelected(tvStorageCurrent);
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         prayerTimesChoice.setText("Jadwal Sholat: " + ("left".equals(prayerPanelPosition) ? "Kiri" : "hidden".equals(prayerPanelPosition) ? "Hilangkan" : "Kanan"));
+        prayerPanelDesignChoice.setText(getString(R.string.prayer_panel_design_state,
+                getString(prayerPanelDesign == 2 ? R.string.prayer_panel_model_two : R.string.prayer_panel_model_one)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -891,7 +920,8 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("builtin_wallpaper_choice")
                 || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("show_prayer_times")
-                || choices.contains("prayer_panel_position") || choices.contains("default_home_apps")
+                || choices.contains("prayer_panel_position") || choices.contains("prayer_panel_design")
+                || choices.contains("default_home_apps")
 ;
     }
 

@@ -164,4 +164,8 @@
     <string name="wallpaper_unsupported">Choose a JPG, PNG, GIF, or MP4 file</string>
     <string name="wallpaper_imported">Wallpaper copied to this TV</string>
     <string name="wallpaper_import_failed">Could not copy the wallpaper</string>
+    <string name="prayer_panel_design_label">Desain Panel Jadwal Sholat</string>
+    <string name="prayer_panel_model_one">Model 1 (Desain Lama)</string>
+    <string name="prayer_panel_model_two">Model 2 (Desain Baru)</string>
+    <string name="prayer_panel_design_state">Desain Panel Jadwal Sholat: %1$s</string>
 </resources>

@@ -3,18 +3,40 @@
     android:height="96dp"
     android:viewportWidth="96"
     android:viewportHeight="96">
+    <!-- Left minaret: narrow shaft, balcony and pointed crown. -->
     <path
         android:fillColor="#FF080B12"
-        android:pathData="M13,79 L83,79 L83,83 L13,83 Z
-            M17,79 L17,43 L24,43 L24,29 L29,23 L34,29 L34,43
-            L38,43 C38,32 43,24 48,21 C53,24 58,32 58,43
-            L62,43 L62,29 L67,23 L72,29 L72,43 L79,43 L79,79 Z
-            M38,79 L38,62 C38,54 44,49 48,49 C52,49 58,54 58,62 L58,79 Z" />
+        android:pathData="M12,82 L12,38 L16,34 L16,25 L19,19 L22,25 L22,34 L26,38 L26,82 Z
+            M9,39 L29,39 L29,43 L9,43 Z
+            M10,50 L28,50 L28,53 L10,53 Z" />
+    <!-- Main mosque building and broad onion dome. -->
     <path
         android:fillColor="#FF080B12"
-        android:pathData="M72,11 C80,11 86,17 86,25 C86,33 80,39 72,39
-            C76,35 78,31 78,25 C78,19 76,15 72,11 Z" />
+        android:pathData="M25,82 L25,55
+            C25,51 29,48 34,46
+            C39,44 42,39 44,33
+            C46,28 48,25 50,23
+            C52,25 54,28 56,33
+            C58,39 61,44 66,46
+            C71,48 75,51 75,55
+            L75,82 Z
+            M38,82 L38,65
+            C38,58 43,53 50,53
+            C57,53 62,58 62,65
+            L62,82 Z" />
+    <!-- Right short minaret. -->
     <path
         android:fillColor="#FF080B12"
-        android:pathData="M46,18 L48,9 L50,18 Z M47,8 L49,8 L49,5 L47,5 Z" />
+        android:pathData="M70,82 L70,42 L74,37 L74,30 L78,24 L82,30 L82,37 L86,42 L86,82 Z
+            M68,43 L88,43 L88,47 L68,47 Z" />
+    <!-- Spires and crescent moon. -->
+    <path
+        android:fillColor="#FF080B12"
+        android:pathData="M48,24 L50,12 L52,24 Z M49,12 L51,12 L51,7 L49,7 Z
+            M72,13 C81,13 88,20 88,29 C88,38 81,45 72,45
+            C77,41 80,36 80,29 C80,22 77,17 72,13 Z" />
+    <!-- Continuous base makes the mosque read as a single solid silhouette. -->
+    <path
+        android:fillColor="#FF080B12"
+        android:pathData="M7,82 L91,82 L91,87 L7,87 Z" />
 </vector>

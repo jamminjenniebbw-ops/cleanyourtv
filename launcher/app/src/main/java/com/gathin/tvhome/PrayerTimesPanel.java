@@ -63,8 +63,8 @@ final class PrayerTimesPanel {
      * Overlay in the same upper-right Home position as the original version.
      * It is deliberately not part of the scrolling app column.
      */
-    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean enabled, String position) {
-        PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand);
+    static PrayerTimesPanel attach(Activity a, FrameLayout root, boolean dockGlass, int dockOpacity, boolean dockBand, boolean cinematic, boolean enabled, String position) {
+        PrayerTimesPanel p = new PrayerTimesPanel(a, dockGlass, dockOpacity, dockBand, cinematic);
         p.enabled = enabled;
         p.positionHidden = "hidden".equals(position);
         android.util.DisplayMetrics dm = a.getResources().getDisplayMetrics();
@@ -125,21 +125,14 @@ final class PrayerTimesPanel {
         else showAtHomeTop();
     }
 
-    private PrayerTimesPanel(Activity a, boolean dockGlass, int dockOpacity, boolean dockBand) {
+    private PrayerTimesPanel(Activity a, boolean dockGlass, int dockOpacity, boolean dockBand, boolean cinematic) {
         activity = a;
         modelTwo = a.getSharedPreferences(Config.SETTINGS_NAME, Activity.MODE_PRIVATE)
                 .getInt("prayer_panel_design", 1) == 2;
         panel = new LinearLayout(a);
         if (modelTwo) {
             buildModelTwo();
-            int baseAlpha = Math.max(40, Math.min(220, dockOpacity));
-            int bgColor = Color.argb(baseAlpha, 24, 35, 52);
-            GradientDrawable dockBackground = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                    new int[]{dockGlass ? Color.argb(Math.min(245, baseAlpha + 12), 39, 52, 70) : bgColor,
-                              bgColor, Color.argb(Math.min(245, baseAlpha + 8), 27, 42, 61)});
-            dockBackground.setCornerRadius(dp(22));
-            dockBackground.setStroke(dp(1), dockBand ? 0x80FFFFFF : 0x55FFFFFF);
-            panel.setBackground(dockBackground);
+            panel.setBackground(createDockBackground(dockGlass, dockOpacity, dockBand, cinematic));
             panel.setElevation(dp(10));
             updateDateCard();
             updateCardStyles(-1);
@@ -147,15 +140,8 @@ final class PrayerTimesPanel {
         }
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(9), dp(7), dp(9), dp(7));
-        // Match the dock glass/opacity controls so this panel follows the existing TV appearance settings.
-        int baseAlpha = Math.max(40, Math.min(220, dockOpacity));
-        int bgColor = Color.argb(baseAlpha, 24, 35, 52);
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{dockGlass ? Color.argb(Math.min(245, baseAlpha + 12), 39, 52, 70) : bgColor,
-                          bgColor, Color.argb(Math.min(245, baseAlpha + 8), 27, 42, 61)});
-        bg.setCornerRadius(dp(22));
-        bg.setStroke(dp(1), dockBand ? 0x80FFFFFF : 0x55FFFFFF);
-        panel.setBackground(bg);
+        // Match the dock's actual fill, glass gradient, opacity and edge treatment.
+        panel.setBackground(createDockBackground(dockGlass, dockOpacity, dockBand, cinematic));
         panel.setElevation(dp(10));
 
         LinearLayout header = new LinearLayout(a);
@@ -509,44 +495,36 @@ final class PrayerTimesPanel {
     }
 
     /** Reference-matched icons extracted from the user's supplied NU-style schedule image. */
-    private final class SolarIconView extends View {
+    private final class SolarIconView extends ImageView {
+        private static Bitmap referenceSheet;
         private int stage;
         private int tint;
         SolarIconView(Activity a, int stage, int tint) {
             super(a);
             this.tint = tint;
+            setScaleType(ImageView.ScaleType.FIT_CENTER);
             setStage(stage);
         }
-        void setTint(int value) { tint = value; invalidate(); }
+        void setTint(int value) { tint = value; setColorFilter(value); }
         void setStage(int value) {
             stage = Math.max(0, Math.min(7, value));
             setContentDescription(names[stage]);
-            invalidate();
-        }
-        private int iconResource() {
-            switch (stage) {
-                case 0: return R.drawable.prayer_icon_imsak;
-                case 1: return R.drawable.prayer_icon_subuh;
-                case 2: return R.drawable.prayer_icon_terbit;
-                case 3: return R.drawable.prayer_icon_dhuha;
-                case 4: return R.drawable.prayer_icon_zuhur;
-                case 5: return R.drawable.prayer_icon_ashar;
-                case 6: return R.drawable.prayer_icon_maghrib;
-                default: return R.drawable.prayer_icon_isya;
-            }
-        }
-        @Override protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            android.graphics.drawable.Drawable icon = activity.getDrawable(iconResource());
-            if (icon == null) return;
-            icon = icon.mutate();
-            int inset = dp(1);
-            icon.setBounds(inset, inset, Math.max(inset + 1, getWidth() - inset),
-                    Math.max(inset + 1, getHeight() - inset));
-            // Draw the original vector intact. Pixel-edge removal erased thin details
-            // and, at the small row-icon size, could erase the entire symbol.
-            icon.setTint(tint);
-            icon.draw(canvas);
+            try {
+                if (referenceSheet == null) {
+                    java.io.InputStream input = activity.getResources().openRawResource(R.raw.prayer_icons_reference);
+                    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                    byte[] buffer = new byte[4096];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) bytes.write(buffer, 0, count);
+                    input.close();
+                    byte[] png = android.util.Base64.decode(bytes.toByteArray(), android.util.Base64.DEFAULT);
+                    referenceSheet = BitmapFactory.decodeByteArray(png, 0, png.length);
+                }
+                if (referenceSheet != null && referenceSheet.getWidth() >= 8 * 74 && referenceSheet.getHeight() >= 74) {
+                    setImageBitmap(Bitmap.createBitmap(referenceSheet, stage * 74, 0, 74, 74));
+                    setColorFilter(tint);
+                }
+            } catch (Exception ignored) { }
         }
     }
 
@@ -954,6 +932,25 @@ final class PrayerTimesPanel {
                 progressTrack.setProgress(Math.min(1f, elapsed / (float) total));
             }
         }
+    }
+
+    private GradientDrawable createDockBackground(boolean lightGlass, int opacity, boolean bandVisible, boolean cinematic) {
+        GradientDrawable bg = new GradientDrawable();
+        if (!bandVisible) {
+            bg.setColor(Color.TRANSPARENT);
+            return bg;
+        }
+        if (lightGlass) {
+            bg.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
+            bg.setColors(new int[]{0x24FFFFFF, 0x0DFFFFFF});
+        } else {
+            int fill = cinematic ? 0x8C121014 : ((Math.round(opacity * 2.55f) << 24) | 0x00141416);
+            bg.setColor(fill);
+        }
+        bg.setCornerRadius(dp(26));
+        int edge = lightGlass ? 0x38FFFFFF : cinematic ? 0x26FFFFFF : 0x1FFFFFFF;
+        bg.setStroke(dp(1), edge);
+        return bg;
     }
 
     private TextView text(String s, int size, int color, boolean medium) {

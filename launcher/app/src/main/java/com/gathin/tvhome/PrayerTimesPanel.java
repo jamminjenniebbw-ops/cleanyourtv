@@ -500,7 +500,7 @@ final class PrayerTimesPanel {
             paint.setColor(Color.WHITE);
             canvas.drawLine(left, y, x, y, paint);
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(0xFFFFD45A);
+            paint.setColor(Color.WHITE);
             canvas.drawCircle(x, y, d(5), paint);
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(d(1.2f));
@@ -541,10 +541,41 @@ final class PrayerTimesPanel {
             if (icon == null) return;
             int inset = dp(1);
             icon = icon.mutate();
-            icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
-            // Draw each icon once, without halo or shadow, for a clean flat appearance.
-            icon.setTint(tint);
-            icon.draw(canvas);
+            int width = Math.max(1, getWidth() - inset * 2);
+            int height = Math.max(1, getHeight() - inset * 2);
+            icon.setBounds(0, 0, width, height);
+            icon.setTint(Color.WHITE);
+            // Keep the solid white interior, but make the outer contour transparent,
+            // matching the white-filled / transparent-outline treatment of the mosque mark.
+            Bitmap mask = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas iconCanvas = new Canvas(mask);
+            icon.draw(iconCanvas);
+            int[] pixels = new int[width * height];
+            mask.getPixels(pixels, 0, width, 0, 0, width, height);
+            int[] result = pixels.clone();
+            for (int py = 0; py < height; py++) {
+                for (int px = 0; px < width; px++) {
+                    int index = py * width + px;
+                    if (Color.alpha(pixels[index]) < 32) continue;
+                    boolean edge = false;
+                    for (int oy = -1; oy <= 1 && !edge; oy++) {
+                        for (int ox = -1; ox <= 1; ox++) {
+                            if (ox == 0 && oy == 0) continue;
+                            int nx = px + ox, ny = py + oy;
+                            if (nx < 0 || ny < 0 || nx >= width || ny >= height
+                                    || Color.alpha(pixels[ny * width + nx]) < 200) {
+                                edge = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (edge) result[index] = Color.TRANSPARENT;
+                    else result[index] = Color.WHITE;
+                }
+            }
+            mask.setPixels(result, 0, width, 0, 0, width, height);
+            canvas.drawBitmap(mask, inset, inset, null);
+            mask.recycle();
         }
     }
 
@@ -863,8 +894,16 @@ final class PrayerTimesPanel {
                 cardBg.setStroke(dp(i == nextIndex ? 1 : 0),
                         i == nextIndex ? 0xCCFFFFFF : Color.TRANSPARENT);
                 int foreground = i == nextIndex ? Color.BLACK : Color.WHITE;
-                if (rowLabels[i] != null) rowLabels[i].setTextColor(foreground);
-                if (values[i] != null) values[i].setTextColor(foreground);
+                if (rowLabels[i] != null) {
+                    rowLabels[i].setTextColor(foreground);
+                    if (i == nextIndex) rowLabels[i].setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT);
+                    else rowLabels[i].setShadowLayer(dp(2), 0f, dp(1), 0xB3000000);
+                }
+                if (values[i] != null) {
+                    values[i].setTextColor(foreground);
+                    if (i == nextIndex) values[i].setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT);
+                    else values[i].setShadowLayer(dp(2), 0f, dp(1), 0xB3000000);
+                }
                 if (cards[i] instanceof LinearLayout) {
                     LinearLayout row = (LinearLayout) cards[i];
                     if (row.getChildAt(0) instanceof SolarIconView)

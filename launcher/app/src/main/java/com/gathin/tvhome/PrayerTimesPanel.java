@@ -505,7 +505,8 @@ final class PrayerTimesPanel {
             setScaleType(ImageView.ScaleType.FIT_CENTER);
             setStage(stage);
         }
-        void setTint(int value) { tint = value; setColorFilter(value); }
+        // Keep the gray artwork from the supplied reference; never recolor it per row state.
+        void setTint(int ignored) { clearColorFilter(); }
         void setStage(int value) {
             stage = Math.max(0, Math.min(7, value));
             setContentDescription(names[stage]);
@@ -522,7 +523,7 @@ final class PrayerTimesPanel {
                 }
                 if (referenceSheet != null && referenceSheet.getWidth() >= 8 * 74 && referenceSheet.getHeight() >= 74) {
                     setImageBitmap(Bitmap.createBitmap(referenceSheet, stage * 74, 0, 74, 74));
-                    setColorFilter(tint);
+                    clearColorFilter();
                 }
             } catch (Exception ignored) { }
         }

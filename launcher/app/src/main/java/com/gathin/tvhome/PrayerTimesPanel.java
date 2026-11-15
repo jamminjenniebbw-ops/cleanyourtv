@@ -539,43 +539,14 @@ final class PrayerTimesPanel {
             super.onDraw(canvas);
             android.graphics.drawable.Drawable icon = activity.getDrawable(iconResource());
             if (icon == null) return;
-            int inset = dp(1);
             icon = icon.mutate();
-            int width = Math.max(1, getWidth() - inset * 2);
-            int height = Math.max(1, getHeight() - inset * 2);
-            icon.setBounds(0, 0, width, height);
-            icon.setTint(Color.WHITE);
-            // Keep the solid white interior, but make the outer contour transparent,
-            // matching the white-filled / transparent-outline treatment of the mosque mark.
-            Bitmap mask = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            Canvas iconCanvas = new Canvas(mask);
-            icon.draw(iconCanvas);
-            int[] pixels = new int[width * height];
-            mask.getPixels(pixels, 0, width, 0, 0, width, height);
-            int[] result = pixels.clone();
-            for (int py = 0; py < height; py++) {
-                for (int px = 0; px < width; px++) {
-                    int index = py * width + px;
-                    if (Color.alpha(pixels[index]) < 32) continue;
-                    boolean edge = false;
-                    for (int oy = -1; oy <= 1 && !edge; oy++) {
-                        for (int ox = -1; ox <= 1; ox++) {
-                            if (ox == 0 && oy == 0) continue;
-                            int nx = px + ox, ny = py + oy;
-                            if (nx < 0 || ny < 0 || nx >= width || ny >= height
-                                    || Color.alpha(pixels[ny * width + nx]) < 200) {
-                                edge = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (edge) result[index] = Color.TRANSPARENT;
-                    else result[index] = Color.WHITE;
-                }
-            }
-            mask.setPixels(result, 0, width, 0, 0, width, height);
-            canvas.drawBitmap(mask, inset, inset, null);
-            mask.recycle();
+            int inset = dp(1);
+            icon.setBounds(inset, inset, Math.max(inset + 1, getWidth() - inset),
+                    Math.max(inset + 1, getHeight() - inset));
+            // Draw the original vector intact. Pixel-edge removal erased thin details
+            // and, at the small row-icon size, could erase the entire symbol.
+            icon.setTint(tint);
+            icon.draw(canvas);
         }
     }
 
@@ -949,7 +920,7 @@ final class PrayerTimesPanel {
         updateNextPrayerIcon(nextIndex);
         if (nextAt == null) {
             nextName.setText("Selanjutnya");
-            nextPrayerTitle.setText("Menuju --");
+            nextPrayerTitle.setText(modelTwo ? "Menuju --" : "--");
             nextPrayerTime.setText("--:--");
             next.setText("--:--:--");
             if (progressTrack != null) progressTrack.setProgress(0f);
@@ -960,7 +931,8 @@ final class PrayerTimesPanel {
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;
         nextName.setText("Selanjutnya");
-        nextPrayerTitle.setText("Menuju " + names[nextIndex]);
+        // Model 2 uses the "Menuju" prefix; the legacy panel shows only the prayer name.
+        nextPrayerTitle.setText(modelTwo ? "Menuju " + names[nextIndex] : names[nextIndex]);
         nextPrayerTime.setText(todayTimes.get(nextIndex));
         next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));
         if (progressTrack != null) {

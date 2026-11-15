@@ -6,6 +6,8 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
@@ -22,6 +24,10 @@ import android.widget.ImageView;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -307,10 +313,10 @@ final class PrayerTimesPanel {
         place.setMaxLines(1);
         place.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         place.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
-        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(142), dp(20),
+        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(158), dp(20),
                 Gravity.TOP | Gravity.RIGHT);
-        placeP.rightMargin = dp(1);
-        placeP.topMargin = dp(1);
+        placeP.rightMargin = dp(8);
+        placeP.topMargin = dp(8);
         header.addView(place, placeP);
 
         dateDay = cleanText("--", 10, false);
@@ -323,8 +329,7 @@ final class PrayerTimesPanel {
         heading.addView(dateHijri, hijriP);
 
         ImageView mosque = new ImageView(activity);
-        mosque.setImageResource(R.drawable.prayer_icon_mosque_model2);
-        mosque.setColorFilter(0xFF080B12);
+        setMosqueFromReference(mosque);
         mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
         FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(34), dp(34),
                 Gravity.RIGHT | Gravity.BOTTOM);
@@ -400,10 +405,64 @@ final class PrayerTimesPanel {
         panel.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
 
+    private Typeface sfProRoundedTypeface;
+
+    private Typeface loadSfProRoundedTypeface() {
+        if (sfProRoundedTypeface != null) return sfProRoundedTypeface;
+        File fontFile = new File(activity.getCacheDir(), "SF-Pro-Rounded-Bold.ttf");
+        if (!fontFile.isFile() || fontFile.length() == 0L) {
+            try (ZipInputStream zip = new ZipInputStream(activity.getAssets().open("font_sf.zip"))) {
+                ZipEntry entry;
+                while ((entry = zip.getNextEntry()) != null) {
+                    if (entry.getName().toLowerCase(Locale.ROOT).endsWith(".ttf")) {
+                        try (FileOutputStream out = new FileOutputStream(fontFile)) {
+                            byte[] buffer = new byte[8192];
+                            int count;
+                            while ((count = zip.read(buffer)) != -1) out.write(buffer, 0, count);
+                        }
+                        break;
+                    }
+                }
+            } catch (Exception ignored) { }
+        }
+        try {
+            if (fontFile.isFile() && fontFile.length() > 0L)
+                sfProRoundedTypeface = Typeface.createFromFile(fontFile);
+        } catch (Exception ignored) { }
+        if (sfProRoundedTypeface == null)
+            sfProRoundedTypeface = Typeface.create("sans-serif", Typeface.BOLD);
+        return sfProRoundedTypeface;
+    }
+
+    private void setMosqueFromReference(ImageView target) {
+        try (java.io.InputStream in = activity.getAssets().open("prayer-panel-model-2.jpg")) {
+            Bitmap source = BitmapFactory.decodeStream(in);
+            if (source == null) return;
+            // Crop the mosque mark directly from the supplied reference image (840x1300 composition).
+            int left = Math.round(source.getWidth() * (610f / 840f));
+            int top = Math.round(source.getHeight() * (130f / 1300f));
+            int width = Math.min(Math.round(source.getWidth() * (82f / 840f)), source.getWidth() - left);
+            int height = Math.min(Math.round(source.getHeight() * (82f / 1300f)), source.getHeight() - top);
+            Bitmap crop = Bitmap.createBitmap(source, left, top, width, height);
+            Bitmap transparent = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int pixel = crop.getPixel(x, y);
+                    int luminance = (Color.red(pixel) * 299 + Color.green(pixel) * 587
+                            + Color.blue(pixel) * 114) / 1000;
+                    int alpha = Math.max(0, Math.min(255, (190 - luminance) * 255 / 190));
+                    transparent.setPixel(x, y, Color.argb(alpha, 0, 0, 0));
+                }
+            }
+            target.setImageBitmap(transparent);
+            if (crop != source) crop.recycle();
+            source.recycle();
+        } catch (Exception ignored) { }
+    }
+
     private TextView cleanText(String value, int size, boolean bold) {
         TextView view = text(value, size, 0xFF17211D, true);
-        // Android's rounded system sans is the closest built-in match to San Francisco Rounded.
-        view.setTypeface(Typeface.create("sans-serif-rounded", Typeface.BOLD));
+        view.setTypeface(loadSfProRoundedTypeface());
         view.setShadowLayer(dp(1.4f), 0f, dp(1), 0xA6FFFFFF);
         return view;
     }

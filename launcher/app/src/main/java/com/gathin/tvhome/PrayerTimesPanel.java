@@ -337,8 +337,9 @@ final class PrayerTimesPanel {
         countdownCard.setOrientation(LinearLayout.VERTICAL);
         countdownCard.setGravity(Gravity.CENTER);
         countdownCard.setPadding(dp(8), dp(11), dp(8), dp(8));
-        // Keep inner surfaces transparent so the entire panel inherits the dock appearance.
-        countdownCard.setBackgroundColor(Color.TRANSPARENT);
+        // Preserve the separate translucent glass card inside the main panel.
+        countdownCard.setBackground(liquidGlass(
+                new int[]{0x30FFFFFF, 0x14FFFFFF}, dp(20), 0x44FFFFFF));
         LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.94f);
         countdownP.topMargin = dp(5);
         panel.addView(countdownCard, countdownP);
@@ -368,8 +369,9 @@ final class PrayerTimesPanel {
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
         schedule.setPadding(dp(8), dp(7), dp(8), dp(7));
-        // Remove the independent tinted glass layer; match the dock's fill and transparency.
-        schedule.setBackgroundColor(Color.TRANSPARENT);
+        // Keep the schedule in its own softly tinted glass card, as in the original Model 2 design.
+        schedule.setBackground(liquidGlass(
+                new int[]{0x28FFFFFF, 0x12FFFFFF}, dp(22), 0x40FFFFFF));
         LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.35f);
         scheduleP.topMargin = dp(6);
         panel.addView(schedule, scheduleP);
@@ -505,11 +507,31 @@ final class PrayerTimesPanel {
             setScaleType(ImageView.ScaleType.FIT_CENTER);
             setStage(stage);
         }
-        // Keep the gray artwork from the supplied reference; never recolor it per row state.
-        void setTint(int ignored) { clearColorFilter(); }
+        void setTint(int value) {
+            tint = value;
+            if (modelTwo) setColorFilter(Color.WHITE);
+            else setColorFilter(tint);
+        }
+        private int iconResource() {
+            switch (stage) {
+                case 0: return R.drawable.prayer_icon_imsak;
+                case 1: return R.drawable.prayer_icon_subuh;
+                case 2: return R.drawable.prayer_icon_terbit;
+                case 3: return R.drawable.prayer_icon_dhuha;
+                case 4: return R.drawable.prayer_icon_zuhur;
+                case 5: return R.drawable.prayer_icon_ashar;
+                case 6: return R.drawable.prayer_icon_maghrib;
+                default: return R.drawable.prayer_icon_isya;
+            }
+        }
         void setStage(int value) {
             stage = Math.max(0, Math.min(7, value));
             setContentDescription(names[stage]);
+            if (!modelTwo) {
+                setImageResource(iconResource());
+                setColorFilter(tint);
+                return;
+            }
             try {
                 if (referenceSheet == null) {
                     java.io.InputStream input = activity.getResources().openRawResource(R.raw.prayer_icons_reference);
@@ -522,15 +544,13 @@ final class PrayerTimesPanel {
                     referenceSheet = BitmapFactory.decodeByteArray(png, 0, png.length);
                 }
                 if (referenceSheet != null && referenceSheet.getWidth() >= 8 && referenceSheet.getHeight() > 0) {
-                    // The supplied reference strip contains the eight original schedule symbols in order.
-                    // Divide the actual source width instead of assuming a fixed 74px export size.
                     int cellWidth = referenceSheet.getWidth() / 8;
                     int left = stage * cellWidth;
                     int width = stage == 7 ? referenceSheet.getWidth() - left : cellWidth;
                     Bitmap icon = Bitmap.createBitmap(referenceSheet, left, 0, width,
                             referenceSheet.getHeight());
                     setImageBitmap(icon);
-                    clearColorFilter();
+                    setColorFilter(Color.WHITE);
                 }
             } catch (Exception ignored) { }
         }

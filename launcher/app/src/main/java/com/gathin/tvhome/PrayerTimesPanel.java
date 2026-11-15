@@ -132,6 +132,15 @@ final class PrayerTimesPanel {
         panel = new LinearLayout(a);
         if (modelTwo) {
             buildModelTwo();
+            int baseAlpha = Math.max(40, Math.min(220, dockOpacity));
+            int bgColor = Color.argb(baseAlpha, 24, 35, 52);
+            GradientDrawable dockBackground = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                    new int[]{dockGlass ? Color.argb(Math.min(245, baseAlpha + 12), 39, 52, 70) : bgColor,
+                              bgColor, Color.argb(Math.min(245, baseAlpha + 8), 27, 42, 61)});
+            dockBackground.setCornerRadius(dp(22));
+            dockBackground.setStroke(dp(1), dockBand ? 0x80FFFFFF : 0x55FFFFFF);
+            panel.setBackground(dockBackground);
+            panel.setElevation(dp(10));
             updateDateCard();
             updateCardStyles(-1);
             return;
@@ -308,15 +317,15 @@ final class PrayerTimesPanel {
 
         // Keep the title and location independent so the location never gets squeezed by the title.
         heading.addView(cleanText("Jadwal Sholat", 16, true), wrap());
-        TextView place = cleanText("Bandung", 9, true);
+        TextView place = cleanText("Bandung", 11, true);
         place.setSingleLine(true);
         place.setMaxLines(1);
         place.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         place.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
-        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(184), dp(22),
+        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(184), dp(26),
                 Gravity.TOP | Gravity.RIGHT);
         placeP.rightMargin = dp(8);
-        placeP.topMargin = dp(11);
+        placeP.topMargin = dp(5);
         header.addView(place, placeP);
 
         dateDay = cleanText("--", 10, false);
@@ -330,6 +339,7 @@ final class PrayerTimesPanel {
 
         ImageView mosque = new ImageView(activity);
         setMosqueFromReference(mosque);
+        mosque.setColorFilter(Color.WHITE);
         mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
         FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(39), dp(39),
                 Gravity.RIGHT | Gravity.BOTTOM);
@@ -349,7 +359,7 @@ final class PrayerTimesPanel {
         nextName = cleanText("Selanjutnya", 13, true);
         nextName.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams nextNameP = wrap();
-        nextNameP.topMargin = dp(4);
+        nextNameP.topMargin = dp(7);
         countdownCard.addView(nextName, nextNameP);
         nextPrayerTitle = cleanText("Menuju --", 18, false);
         nextPrayerTitle.setGravity(Gravity.CENTER);
@@ -359,7 +369,7 @@ final class PrayerTimesPanel {
         next = cleanText("--:--:--", 27, false);
         next.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams timeP = wrap();
-        timeP.topMargin = dp(2);
+        timeP.topMargin = 0;
         countdownCard.addView(next, timeP);
         nextPrayerTime = cleanText("--:--", 1, false);
         nextPrayerTime.setVisibility(View.GONE);
@@ -388,7 +398,7 @@ final class PrayerTimesPanel {
             row.setBackground(rowBg);
             schedule.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
             cards[i] = row;
-            SolarIconView rowIcon = new SolarIconView(activity, i, 0xFF000000);
+            SolarIconView rowIcon = new SolarIconView(activity, i, Color.WHITE);
             LinearLayout.LayoutParams rowIconP = new LinearLayout.LayoutParams(dp(18), dp(18));
             rowIconP.rightMargin = dp(7);
             row.addView(rowIcon, rowIconP);
@@ -461,10 +471,10 @@ final class PrayerTimesPanel {
     }
 
     private TextView cleanText(String value, int size, boolean bold) {
-        TextView view = text(value, size, 0xFF17211D, true);
+        TextView view = text(value, size, Color.WHITE, true);
         view.setTypeface(loadSfProRoundedTypeface());
         view.setPadding(dp(3), dp(1), dp(4), dp(1));
-        view.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT);
+        view.setShadowLayer(dp(2), 0f, dp(1), 0xB3000000);
         return view;
     }
 
@@ -485,9 +495,9 @@ final class PrayerTimesPanel {
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeCap(Paint.Cap.ROUND);
             paint.setStrokeWidth(d(4));
-            paint.setColor(0x6698B7A7);
+            paint.setColor(0x66808080);
             canvas.drawLine(left, y, right, y, paint);
-            paint.setColor(0xFFFFD45A);
+            paint.setColor(Color.WHITE);
             canvas.drawLine(left, y, x, y, paint);
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(0xFFFFD45A);
@@ -501,12 +511,13 @@ final class PrayerTimesPanel {
     /** Reference-matched icons extracted from the user's supplied NU-style schedule image. */
     private final class SolarIconView extends View {
         private int stage;
-        private final int tint;
+        private int tint;
         SolarIconView(Activity a, int stage, int tint) {
             super(a);
             this.tint = tint;
             setStage(stage);
         }
+        void setTint(int value) { tint = value; invalidate(); }
         void setStage(int value) {
             stage = Math.max(0, Math.min(7, value));
             setContentDescription(names[stage]);
@@ -848,11 +859,17 @@ final class PrayerTimesPanel {
             GradientDrawable cardBg = new GradientDrawable();
             cardBg.setCornerRadius(dp(modelTwo ? 18 : 7));
             if (modelTwo) {
-                cardBg.setColor(i == nextIndex ? 0xD9C9F0DB : Color.TRANSPARENT);
+                cardBg.setColor(i == nextIndex ? Color.WHITE : Color.TRANSPARENT);
                 cardBg.setStroke(dp(i == nextIndex ? 1 : 0),
-                        i == nextIndex ? 0xFF329B72 : Color.TRANSPARENT);
-                if (rowLabels[i] != null) rowLabels[i].setTextColor(0xFF17211D);
-                if (values[i] != null) values[i].setTextColor(0xFF17211D);
+                        i == nextIndex ? 0xCCFFFFFF : Color.TRANSPARENT);
+                int foreground = i == nextIndex ? Color.BLACK : Color.WHITE;
+                if (rowLabels[i] != null) rowLabels[i].setTextColor(foreground);
+                if (values[i] != null) values[i].setTextColor(foreground);
+                if (cards[i] instanceof LinearLayout) {
+                    LinearLayout row = (LinearLayout) cards[i];
+                    if (row.getChildAt(0) instanceof SolarIconView)
+                        ((SolarIconView) row.getChildAt(0)).setTint(foreground);
+                }
             } else {
                 cardBg.setColor(i == nextIndex ? 0x2436C987 : 0x00000000);
                 cardBg.setStroke(dp(i == nextIndex ? 1 : 0),

@@ -103,6 +103,69 @@
         android:visibility="gone"
         android:importantForAccessibility="no" />
 
+    <LinearLayout
+        android:id="@+id/prayerPanel"
+        android:layout_width="440dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|right"
+        android:layout_marginEnd="42dp"
+        android:layout_marginTop="158dp"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#99000000"
+        android:focusable="false"
+        android:importantForAccessibility="no"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/prayerLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="JADWAL SHOLAT  ·  BANDUNG"
+            android:textColor="#B3FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="@string/font_medium"
+            android:letterSpacing="0.16" />
+
+        <LinearLayout
+            android:id="@+id/prayerTimesRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:orientation="horizontal"
+            android:weightSum="5">
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/prayerFajrName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Subuh" android:textColor="#B3FFFFFF" android:textSize="12sp"/>
+                <TextView android:id="@+id/prayerFajrTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="--:--" android:textColor="#FFFFFFFF" android:textSize="19sp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/prayerDhuhrName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Zuhur" android:textColor="#B3FFFFFF" android:textSize="12sp"/>
+                <TextView android:id="@+id/prayerDhuhrTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="--:--" android:textColor="#FFFFFFFF" android:textSize="19sp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/prayerAsrName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Asar" android:textColor="#B3FFFFFF" android:textSize="12sp"/>
+                <TextView android:id="@+id/prayerAsrTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="--:--" android:textColor="#FFFFFFFF" android:textSize="19sp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/prayerMaghribName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Magrib" android:textColor="#B3FFFFFF" android:textSize="12sp"/>
+                <TextView android:id="@+id/prayerMaghribTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="--:--" android:textColor="#FFFFFFFF" android:textSize="19sp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:id="@+id/prayerIshaName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Isya" android:textColor="#B3FFFFFF" android:textSize="12sp"/>
+                <TextView android:id="@+id/prayerIshaTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="--:--" android:textColor="#FFFFFFFF" android:textSize="19sp"/>
+            </LinearLayout>
+        </LinearLayout>
+        <TextView
+            android:id="@+id/prayerCountdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Memuat jadwal sholat..."
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:fontFamily="@string/font_medium" />
+    </LinearLayout>
+
     <!-- Top shelf: the focused dock app's name, positioned above the dock in code. -->
     <LinearLayout
         android:id="@+id/hero"

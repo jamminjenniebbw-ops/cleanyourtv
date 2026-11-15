@@ -78,6 +78,13 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import org.json.JSONObject;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -192,6 +199,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView stats;
     private List<RaceWeekend.Race> raceCalendar;
     private View racePanel;
+    private View prayerPanel;
+    private TextView prayerCountdown;
+    private final TextView[] prayerTimeViews = new TextView[5];
+    private final TextView[] prayerNameViews = new TextView[5];
+    private final int[] prayerMinutes = new int[5];
+    private String prayerDateKey = "";
+    private boolean prayerLoading;
+    private static final int PRAYER_GREEN = 0xFF2BB673;
+    private static final ZoneId PRAYER_ZONE = ZoneId.of("Asia/Jakarta");
+    private static final String[] PRAYER_NAMES = {"Subuh", "Zuhur", "Asar", "Magrib", "Isya"};
     private TextView raceKicker, raceHeadline, raceSessions;
     /** config.xml show_stats, overridable by a theme. Off: the line is gone and nothing is read. */
     private boolean showStats;
@@ -372,6 +389,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         public void run() {
             updateGreeting();
             updateRace();
+            updatePrayerCountdown();
             // The pill follows the network callbacks and each return to Home; only the diya's flame follows the
             // signal level, so only it needs this minute's binder calls (about 7 ms on the UI thread).
             if (festive) updateWifiLabel();
@@ -491,6 +509,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         racePanel = findViewById(R.id.racePanel);
         raceKicker = findViewById(R.id.raceKicker);
         raceHeadline = findViewById(R.id.raceHeadline);
+        prayerPanel = findViewById(R.id.prayerPanel);
+        prayerCountdown = findViewById(R.id.prayerCountdown);
+        prayerTimeViews[0] = findViewById(R.id.prayerFajrTime);
+        prayerTimeViews[1] = findViewById(R.id.prayerDhuhrTime);
+        prayerTimeViews[2] = findViewById(R.id.prayerAsrTime);
+        prayerTimeViews[3] = findViewById(R.id.prayerMaghribTime);
+        prayerTimeViews[4] = findViewById(R.id.prayerIshaTime);
+        prayerNameViews[0] = findViewById(R.id.prayerFajrName);
+        prayerNameViews[1] = findViewById(R.id.prayerDhuhrName);
+        prayerNameViews[2] = findViewById(R.id.prayerAsrName);
+        prayerNameViews[3] = findViewById(R.id.prayerMaghribName);
+        prayerNameViews[4] = findViewById(R.id.prayerIshaName);
         raceSessions = findViewById(R.id.raceSessions);
         showStats = cfg.showStats;
         shamsi = cfg.shamsiDate;
@@ -967,6 +997,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 break;
         }
         if (openLiveTvAfterBoot()) return;
+        updateGreeting();
+        updateRace();
+        loadPrayerTimes();
+        updatePrayerCountdown();
         updateGreeting();
         updateRace();
         // The network and Inputs pills keep their state while Home is in the background, and callbacks update them
@@ -2520,7 +2554,119 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (lunar) lunarDate.setText(Lunar.today(getResources(), lunarOffset));
     }
 
-    // ---- race-weekend panel (a theme's race_calendar) -----------------------------------------------
+
+    // ---- Bandung prayer schedule ---------------------------------------------------------------
+
+    private void loadPrayerTimes() {
+        if (prayerLoading || prayerPanel == null) return;
+        final LocalDate today = LocalDate.now(PRAYER_ZONE);
+        final String dateKey = today.toString();
+        if (dateKey.equals(prayerDateKey)) {
+            updatePrayerCountdown();
+            return;
+        }
+        prayerLoading = true;
+        loadPrayerCache(dateKey);
+        Thread worker = new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                String apiDate = today.format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy", Locale.US));
+                URL url = new URL("https://api.aladhan.com/v1/timings/" + apiDate
+                        + "?latitude=-6.9175&longitude=107.6191&method=20&timezonestring=Asia%2FJakarta");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(12000);
+                connection.connect();
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("HTTP " + connection.getResponseCode());
+                }
+                StringBuilder body = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) body.append(line);
+                }
+                JSONObject timings = new JSONObject(body.toString()).getJSONObject("data").getJSONObject("timings");
+                String[] values = {timings.getString("Fajr"), timings.getString("Dhuhr"),
+                        timings.getString("Asr"), timings.getString("Maghrib"), timings.getString("Isha")};
+                runOnUiThread(() -> {
+                    prayerLoading = false;
+                    prayerDateKey = dateKey;
+                    android.content.SharedPreferences.Editor prefs = getSharedPreferences("prayer_schedule", MODE_PRIVATE)
+                            .edit().putString("date", dateKey);
+                    for (int i = 0; i < values.length; i++) prefs.putString("time" + i, values[i]);
+                    prefs.apply();
+                    showPrayerTimes(values);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    prayerLoading = false;
+                    if (prayerDateKey.isEmpty()) prayerCountdown.setText("Jadwal sholat belum tersedia");
+                });
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }, "BandungPrayerSchedule");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void loadPrayerCache(String expectedDate) {
+        android.content.SharedPreferences prefs = getSharedPreferences("prayer_schedule", MODE_PRIVATE);
+        if (!expectedDate.equals(prefs.getString("date", ""))) return;
+        String[] values = new String[5];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = prefs.getString("time" + i, "");
+            if (values[i].length() < 5) return;
+            values[i] = values[i].substring(0, 5);
+        }
+        prayerDateKey = expectedDate;
+        showPrayerTimes(values);
+    }
+
+    private void showPrayerTimes(String[] values) {
+        if (prayerPanel == null || values.length != 5) return;
+        for (int i = 0; i < values.length; i++) {
+            String time = values[i].substring(0, 5);
+            prayerTimeViews[i].setText(time);
+            LocalTime parsed = LocalTime.parse(time);
+            prayerMinutes[i] = parsed.getHour() * 60 + parsed.getMinute();
+        }
+        prayerPanel.setVisibility(View.VISIBLE);
+        updatePrayerCountdown();
+    }
+
+    private void updatePrayerCountdown() {
+        if (prayerPanel == null || prayerCountdown == null) return;
+        String today = LocalDate.now(PRAYER_ZONE).toString();
+        if (!today.equals(prayerDateKey)) {
+            prayerCountdown.setText("Memuat jadwal sholat...");
+            loadPrayerTimes();
+            return;
+        }
+        LocalTime current = LocalTime.now(PRAYER_ZONE);
+        int now = current.getHour() * 60 + current.getMinute();
+        int next = -1;
+        for (int i = 0; i < prayerMinutes.length; i++) {
+            if (prayerMinutes[i] > now) { next = i; break; }
+        }
+        for (int i = 0; i < prayerNameViews.length; i++) {
+            prayerNameViews[i].setTextColor(i == next ? PRAYER_GREEN : 0xB3FFFFFF);
+            prayerTimeViews[i].setTextColor(i == next ? PRAYER_GREEN : 0xFFFFFFFF);
+        }
+        if (next < 0) {
+            prayerCountdown.setText("Jadwal sholat hari ini selesai");
+            return;
+        }
+        long seconds = Math.max(0, (prayerMinutes[next] - now) * 60L - current.getSecond());
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long remaining = seconds % 60;
+        prayerCountdown.setText(String.format(Locale.US, "Menuju %s  ·  %02d:%02d:%02d",
+                PRAYER_NAMES[next], hours, minutes, remaining));
+    }
+
+    // ---- race-weekend panel (a theme's race_calendar)    // ---- race-weekend panel (a theme's race_calendar) -----------------------------------------------
 
     private static final int RACE_RED = 0xFFFF3B2F;
 

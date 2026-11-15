@@ -448,7 +448,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         root = findViewById(R.id.root);
         android.content.SharedPreferences prayerPrefs = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         String prayerPosition = prayerPrefs.getString("prayer_panel_position", "right");
-        prayerTimesPanel = PrayerTimesPanel.attach(this, root, cfg.dockGlass, cfg.dockOpacity, cfg.dockBand, cfg.cinematicHome,
+        prayerTimesPanel = PrayerTimesPanel.attach(this, root, cfg.dockGlass, cfg.dockOpacity, cfg.dockBand && cfg.dockRow, cfg.cinematicHome,
                 prayerPrefs.getBoolean("show_prayer_times", true) && !"hidden".equals(prayerPosition), prayerPosition);
         root.setBackgroundColor(cfg.backgroundColor);
         // root fills the window with an opaque colour (Config keeps background_color opaque), so the window's own

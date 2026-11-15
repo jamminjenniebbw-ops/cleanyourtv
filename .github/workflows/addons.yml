@@ -35,6 +35,8 @@ jobs:
           [ -z "$changed" ] && { echo "no add-on changed"; exit 0; }
           for a in $changed; do
             [ -d "addons/$a" ] || continue
+            # prayer-home is an integrated launcher component, not a standalone add-on project.
+            [ "$a" = "prayer-home" ] && { echo "Skipping integrated launcher component: $a"; continue; }
             [ -f "addons/$a/gradlew" ] || { echo "addons/$a has no gradlew"; exit 1; }
             echo "::group::addons/$a"
             (cd "addons/$a" && chmod +x gradlew && ./gradlew --no-daemon assembleRelease)

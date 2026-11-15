@@ -337,8 +337,8 @@ final class PrayerTimesPanel {
         countdownCard.setOrientation(LinearLayout.VERTICAL);
         countdownCard.setGravity(Gravity.CENTER);
         countdownCard.setPadding(dp(8), dp(11), dp(8), dp(8));
-        countdownCard.setBackground(liquidGlass(
-                new int[]{0x24FFFFFF, 0x1CF3EAE5, 0x18DDE9F4}, dp(22), 0x44FFFFFF));
+        // Keep inner surfaces transparent so the entire panel inherits the dock appearance.
+        countdownCard.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.94f);
         countdownP.topMargin = dp(5);
         panel.addView(countdownCard, countdownP);
@@ -368,8 +368,8 @@ final class PrayerTimesPanel {
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
         schedule.setPadding(dp(8), dp(7), dp(8), dp(7));
-        schedule.setBackground(liquidGlass(
-                new int[]{0x20F6E7E0, 0x19D9D6E2, 0x16DDEBFA}, dp(22), 0x38FFFFFF));
+        // Remove the independent tinted glass layer; match the dock's fill and transparency.
+        schedule.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.35f);
         scheduleP.topMargin = dp(6);
         panel.addView(schedule, scheduleP);

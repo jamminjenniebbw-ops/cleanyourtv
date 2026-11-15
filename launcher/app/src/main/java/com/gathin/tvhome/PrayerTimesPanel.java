@@ -521,8 +521,15 @@ final class PrayerTimesPanel {
                     byte[] png = android.util.Base64.decode(bytes.toByteArray(), android.util.Base64.DEFAULT);
                     referenceSheet = BitmapFactory.decodeByteArray(png, 0, png.length);
                 }
-                if (referenceSheet != null && referenceSheet.getWidth() >= 8 * 74 && referenceSheet.getHeight() >= 74) {
-                    setImageBitmap(Bitmap.createBitmap(referenceSheet, stage * 74, 0, 74, 74));
+                if (referenceSheet != null && referenceSheet.getWidth() >= 8 && referenceSheet.getHeight() > 0) {
+                    // The supplied reference strip contains the eight original schedule symbols in order.
+                    // Divide the actual source width instead of assuming a fixed 74px export size.
+                    int cellWidth = referenceSheet.getWidth() / 8;
+                    int left = stage * cellWidth;
+                    int width = stage == 7 ? referenceSheet.getWidth() - left : cellWidth;
+                    Bitmap icon = Bitmap.createBitmap(referenceSheet, left, 0, width,
+                            referenceSheet.getHeight());
+                    setImageBitmap(icon);
                     clearColorFilter();
                 }
             } catch (Exception ignored) { }

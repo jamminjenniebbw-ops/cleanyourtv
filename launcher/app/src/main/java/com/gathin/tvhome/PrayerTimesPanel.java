@@ -68,10 +68,10 @@ final class PrayerTimesPanel {
                 .getInt("prayer_panel_design", 1) == 2;
         // Model 2 is a compact landscape card; Model 1 keeps its original footprint unchanged.
         int panelWidth = modelTwo
-                ? Math.min((int)(320f * dm.density), (int)(screenWidth * .29f))
+                ? Math.min((int)(270f * dm.density), (int)(screenWidth * .25f))
                 : Math.min((int)(330f * dm.density), (int)(screenWidth * .32f));
         int panelHeight = modelTwo
-                ? Math.min((int)(570f * dm.density), (int)(screenHeight * .78f))
+                ? Math.min((int)(490f * dm.density), (int)(screenHeight * .70f))
                 : (int)(screenHeight * .58f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, panelHeight,
                 ("left".equals(position) ? Gravity.START : Gravity.END) | Gravity.CENTER_VERTICAL);
@@ -218,7 +218,6 @@ final class PrayerTimesPanel {
         dateMonth = text("", 11, 0xFFE5E8ED, true);
         date.addView(dateMonth, wrap());
         hijriDate = text("", 9, 0xFFD6DCE5, true);
-
         LinearLayout countdown = glassCard();
         countdown.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams countP = new LinearLayout.LayoutParams(-1, 0, .88f);
@@ -295,107 +294,104 @@ final class PrayerTimesPanel {
         panel.setElevation(dp(8));
 
         FrameLayout header = new FrameLayout(activity);
-        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(88)));
+        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(62)));
         LinearLayout heading = new LinearLayout(activity);
         heading.setOrientation(LinearLayout.VERTICAL);
         heading.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams headingP = new FrameLayout.LayoutParams(-1, -1, Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        headingP.rightMargin = dp(74);
+        headingP.rightMargin = dp(42);
         header.addView(heading, headingP);
-        heading.addView(cleanText("Jadwal Sholat", 22, true), wrap());
-        dateDay = cleanText("--", 12, false);
+
+        LinearLayout titleLine = new LinearLayout(activity);
+        titleLine.setOrientation(LinearLayout.HORIZONTAL);
+        titleLine.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(titleLine, wrap());
+        titleLine.addView(cleanText("Jadwal Sholat", 18, true), wrap());
+        TextView place = cleanText("Bandung & Sekitarnya", 9, false);
+        LinearLayout.LayoutParams placeP = wrap();
+        placeP.leftMargin = dp(7);
+        titleLine.addView(place, placeP);
+
+        dateDay = cleanText("--", 10, false);
         LinearLayout.LayoutParams gregorianP = wrap();
-        gregorianP.topMargin = dp(4);
+        gregorianP.topMargin = dp(3);
         heading.addView(dateDay, gregorianP);
-        dateHijri = cleanText("--", 11, false);
+        dateHijri = cleanText("--", 9, false);
         LinearLayout.LayoutParams hijriP = wrap();
-        hijriP.topMargin = dp(3);
+        hijriP.topMargin = dp(1);
         heading.addView(dateHijri, hijriP);
 
-        LinearLayout rightHeader = new LinearLayout(activity);
-        rightHeader.setOrientation(LinearLayout.VERTICAL);
-        rightHeader.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        header.addView(rightHeader, new FrameLayout.LayoutParams(-2, -1, Gravity.RIGHT | Gravity.TOP));
-        TextView place = cleanText("Bandung & Sekitarnya", 11, true);
-        place.setGravity(Gravity.CENTER);
-        place.setPadding(dp(8), dp(5), dp(8), dp(5));
-        GradientDrawable placeBg = new GradientDrawable();
-        placeBg.setColor(0x55FFFFFF);
-        placeBg.setCornerRadius(dp(7));
-        place.setBackground(placeBg);
-        rightHeader.addView(place, wrap());
         ImageView mosque = new ImageView(activity);
         mosque.setImageResource(R.drawable.prayer_icon_mosque);
-        mosque.setColorFilter(0xFF080B12);
         mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        LinearLayout.LayoutParams mosqueP = new LinearLayout.LayoutParams(dp(38), dp(38));
-        mosqueP.topMargin = dp(8);
-        mosqueP.rightMargin = dp(7);
-        rightHeader.addView(mosque, mosqueP);
+        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(32), dp(32),
+                Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        mosqueP.rightMargin = dp(3);
+        header.addView(mosque, mosqueP);
 
         LinearLayout countdownCard = new LinearLayout(activity);
         countdownCard.setOrientation(LinearLayout.VERTICAL);
         countdownCard.setGravity(Gravity.CENTER);
-        countdownCard.setPadding(dp(12), dp(12), dp(12), dp(12));
+        countdownCard.setPadding(dp(8), dp(7), dp(8), dp(7));
         GradientDrawable countdownBg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[]{0x78F8F0EC, 0x70EADFD9});
         countdownBg.setCornerRadius(dp(22));
         countdownBg.setStroke(dp(1), 0x55FFFFFF);
         countdownCard.setBackground(countdownBg);
-        LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.88f);
+        LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.76f);
         countdownP.topMargin = dp(5);
         panel.addView(countdownCard, countdownP);
         nextName = cleanText("Selanjutnya", 13, true);
         nextName.setGravity(Gravity.CENTER);
         countdownCard.addView(nextName, wrap());
-        nextPrayerTitle = cleanText("Menuju --", 22, false);
+        nextPrayerTitle = cleanText("Menuju --", 18, false);
         nextPrayerTitle.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams targetP = wrap();
-        targetP.topMargin = dp(8);
+        targetP.topMargin = dp(3);
         countdownCard.addView(nextPrayerTitle, targetP);
-        next = cleanText("--:--:--", 32, false);
+        next = cleanText("--:--:--", 27, false);
         next.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams timeP = wrap();
-        timeP.topMargin = dp(5);
+        timeP.topMargin = dp(2);
         countdownCard.addView(next, timeP);
         nextPrayerTime = cleanText("--:--", 1, false);
         nextPrayerTime.setVisibility(View.GONE);
         progressTrack = new ProgressTrack(activity);
         LinearLayout.LayoutParams progressP = new LinearLayout.LayoutParams(-1, dp(17));
-        progressP.topMargin = dp(12);
+        progressP.topMargin = dp(5);
         countdownCard.addView(progressTrack, progressP);
 
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
-        schedule.setPadding(dp(12), dp(10), dp(12), dp(10));
+        schedule.setPadding(dp(8), dp(7), dp(8), dp(7));
         GradientDrawable scheduleBg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0x70F6E7E0, 0x68D9D6E2});
         scheduleBg.setCornerRadius(dp(22));
         scheduleBg.setStroke(dp(1), 0x55FFFFFF);
         schedule.setBackground(scheduleBg);
-        LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.12f);
-        scheduleP.topMargin = dp(9);
+        LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.50f);
+        scheduleP.topMargin = dp(6);
         panel.addView(schedule, scheduleP);
         for (int i = 0; i < names.length; i++) {
             LinearLayout row = new LinearLayout(activity);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(10), dp(4), dp(10), dp(4));
+            row.setPadding(dp(7), dp(1), dp(7), dp(1));
             GradientDrawable rowBg = new GradientDrawable();
             rowBg.setColor(Color.TRANSPARENT);
             rowBg.setCornerRadius(dp(24));
             row.setBackground(rowBg);
             schedule.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
             cards[i] = row;
-            SolarIconView rowIcon = new SolarIconView(activity, i, 0xB8000000);
-            LinearLayout.LayoutParams rowIconP = new LinearLayout.LayoutParams(dp(22), dp(22));
-            rowIconP.rightMargin = dp(10);
+            SolarIconView rowIcon = new SolarIconView(activity, i, 0xFF000000);
+            LinearLayout.LayoutParams rowIconP = new LinearLayout.LayoutParams(dp(18), dp(18));
+            rowIconP.rightMargin = dp(7);
             row.addView(rowIcon, rowIconP);
-            rowLabels[i] = cleanText(names[i], 16, false);
+            rowLabels[i] = cleanText(names[i], 13, false);
             row.addView(rowLabels[i], new LinearLayout.LayoutParams(0, -2, 1f));
-            values[i] = cleanText("--:--", 16, false);
+            values[i] = cleanText("--:--", 13, false);
             values[i].setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-            row.addView(values[i], new LinearLayout.LayoutParams(dp(72), -2));
+            row.addView(values[i], new LinearLayout.LayoutParams(dp(58), -2));
         }
         status = cleanText("", 1, false);
         status.setVisibility(View.GONE);
@@ -421,7 +417,7 @@ final class PrayerTimesPanel {
         private float d(float value) { return value * getResources().getDisplayMetrics().density; }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float y = getHeight() / 2f;
+            float y = getHeight() / 2f - d(1.5f);
             float left = d(6), right = getWidth() - d(6);
             float x = left + (right - left) * progress;
             paint.setStyle(Paint.Style.STROKE);
@@ -437,8 +433,7 @@ final class PrayerTimesPanel {
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(d(1.2f));
             paint.setColor(Color.WHITE);
-            canvas.drawCircle(x, y, d(5), paint);
-        }
+            canvas.drawCircle(x, y, d(5), paint);        }
     }
 
     /** Reference-matched icons extracted from the user's supplied NU-style schedule image. */
@@ -647,8 +642,7 @@ final class PrayerTimesPanel {
                                 .apply();
                     } catch (Exception ignored) {
                         // A not-yet-published next-year schedule must not invalidate this year's fresh cache.
-                    }
-                }
+                    }                }
                 activity.runOnUiThread(() -> {
                     fetching = false;
                     fetchAttempt = 0;
@@ -833,7 +827,7 @@ final class PrayerTimesPanel {
         long hours = seconds / 3600;
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;
-        nextName.setText("Hitung Mundur Waktu Sholat Berikutnya");
+        nextName.setText("Selanjutnya");
         nextPrayerTitle.setText("Menuju " + names[nextIndex]);
         nextPrayerTime.setText(todayTimes.get(nextIndex));
         next.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds));

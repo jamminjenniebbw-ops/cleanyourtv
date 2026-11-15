@@ -288,7 +288,7 @@ final class PrayerTimesPanel {
         panel.setClipChildren(false);
         panel.setClipToPadding(false);
         panel.setBackground(liquidGlass(
-                new int[]{0x48DCEAF1, 0x38F4DCCF, 0x42D9C8DE}, dp(28), 0x88FFFFFF));
+                new int[]{0x38DCEAF1, 0x2AF4DCCF, 0x32D9C8DE}, dp(28), 0x70FFFFFF));
         panel.setElevation(dp(8));
 
         FrameLayout header = new FrameLayout(activity);
@@ -305,9 +305,12 @@ final class PrayerTimesPanel {
         titleLine.setGravity(Gravity.CENTER_VERTICAL);
         heading.addView(titleLine, wrap());
         titleLine.addView(cleanText("Jadwal Sholat", 16, true), wrap());
-        TextView place = cleanText("Bandung & Sekitarnya", 8, false);
+        TextView place = cleanText("Bandung & Sekitarnya", 8, true);
         place.setSingleLine(true);
-        LinearLayout.LayoutParams placeP = wrap();
+        place.setMaxLines(1);
+        place.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        place.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
+        LinearLayout.LayoutParams placeP = new LinearLayout.LayoutParams(0, -2, 1f);
         placeP.leftMargin = dp(5);
         titleLine.addView(place, placeP);
 
@@ -321,12 +324,13 @@ final class PrayerTimesPanel {
         heading.addView(dateHijri, hijriP);
 
         ImageView mosque = new ImageView(activity);
-        mosque.setImageResource(R.drawable.prayer_icon_mosque);
+        mosque.setImageResource(R.drawable.prayer_icon_mosque_model2);
+        mosque.setColorFilter(0xFF080B12);
         mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(30), dp(30),
+        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(34), dp(34),
                 Gravity.RIGHT | Gravity.BOTTOM);
-        mosqueP.rightMargin = dp(3);
-        mosqueP.bottomMargin = dp(5);
+        mosqueP.rightMargin = dp(2);
+        mosqueP.bottomMargin = dp(3);
         header.addView(mosque, mosqueP);
 
         LinearLayout countdownCard = new LinearLayout(activity);
@@ -334,7 +338,7 @@ final class PrayerTimesPanel {
         countdownCard.setGravity(Gravity.CENTER);
         countdownCard.setPadding(dp(8), dp(11), dp(8), dp(8));
         countdownCard.setBackground(liquidGlass(
-                new int[]{0x52FFFFFF, 0x35F3EAE5, 0x2EDDE9F4}, dp(22), 0x66FFFFFF));
+                new int[]{0x42FFFFFF, 0x2AF3EAE5, 0x25DDE9F4}, dp(22), 0x55FFFFFF));
         LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.94f);
         countdownP.topMargin = dp(5);
         panel.addView(countdownCard, countdownP);
@@ -357,14 +361,15 @@ final class PrayerTimesPanel {
         nextPrayerTime.setVisibility(View.GONE);
         progressTrack = new ProgressTrack(activity);
         LinearLayout.LayoutParams progressP = new LinearLayout.LayoutParams(-1, dp(20));
-        progressP.topMargin = dp(3);
+        progressP.topMargin = 0;
         countdownCard.addView(progressTrack, progressP);
+        progressTrack.setTranslationY(-dp(2));
 
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
         schedule.setPadding(dp(8), dp(7), dp(8), dp(7));
         schedule.setBackground(liquidGlass(
-                new int[]{0x45F6E7E0, 0x34D9D6E2, 0x2ADDEBFA}, dp(22), 0x55FFFFFF));
+                new int[]{0x36F6E7E0, 0x2AD9D6E2, 0x22DDEBFA}, dp(22), 0x44FFFFFF));
         LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.35f);
         scheduleP.topMargin = dp(6);
         panel.addView(schedule, scheduleP);
@@ -397,8 +402,9 @@ final class PrayerTimesPanel {
     }
 
     private TextView cleanText(String value, int size, boolean bold) {
-        TextView view = text(value, size, 0xFF17211D, bold);
-        view.setShadowLayer(0, 0, 0, Color.TRANSPARENT);
+        TextView view = text(value, size, 0xFF17211D, true);
+        view.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        view.setShadowLayer(dp(1.4f), 0f, dp(1), 0xA6FFFFFF);
         return view;
     }
 
@@ -466,7 +472,12 @@ final class PrayerTimesPanel {
             icon = icon.mutate();
             icon.setTint(tint);
             icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
+            // A tiny second pass thickens thin vector strokes for better TV-distance legibility.
             icon.draw(canvas);
+            canvas.save();
+            canvas.translate(dp(0.55f), 0);
+            icon.draw(canvas);
+            canvas.restore();
         }
     }
 

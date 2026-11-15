@@ -10,6 +10,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.BlurMaskFilter;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Typeface;
 import android.icu.util.IslamicCalendar;
 import android.graphics.drawable.GradientDrawable;
@@ -501,6 +504,7 @@ final class PrayerTimesPanel {
         private static Bitmap referenceSheet;
         private int stage;
         private int tint;
+        private Bitmap modelTwoSource;
         SolarIconView(Activity a, int stage, int tint) {
             super(a);
             this.tint = tint;
@@ -509,8 +513,39 @@ final class PrayerTimesPanel {
         }
         void setTint(int value) {
             tint = value;
-            if (modelTwo) setColorFilter(Color.WHITE);
-            else setColorFilter(tint);
+            if (modelTwo) {
+                // White icons have a soft black shadow; the highlighted black icon has none.
+                renderModelTwoIcon(value, value != Color.BLACK);
+            } else {
+                setColorFilter(tint);
+            }
+        }
+
+        private void renderModelTwoIcon(int color, boolean withShadow) {
+            if (modelTwoSource == null) return;
+            try {
+                int blur = withShadow ? dp(3) : 0;
+                int offset = withShadow ? dp(1) : 0;
+                int pad = blur * 2 + offset;
+                Bitmap composed = Bitmap.createBitmap(
+                        modelTwoSource.getWidth() + pad * 2,
+                        modelTwoSource.getHeight() + pad * 2,
+                        Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(composed);
+                if (withShadow) {
+                    Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    shadowPaint.setColorFilter(new PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN));
+                    shadowPaint.setMaskFilter(new BlurMaskFilter(Math.max(1f, dp(2.2f)), BlurMaskFilter.Blur.NORMAL));
+                    canvas.drawBitmap(modelTwoSource, pad, pad + offset, shadowPaint);
+                }
+                Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                iconPaint.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+                canvas.drawBitmap(modelTwoSource, pad, pad, iconPaint);
+                setColorFilter(null);
+                setImageBitmap(composed);
+            } catch (Exception ignored) {
+                setColorFilter(color);
+            }
         }
         private int iconResource() {
             switch (stage) {
@@ -547,10 +582,9 @@ final class PrayerTimesPanel {
                     int cellWidth = referenceSheet.getWidth() / 8;
                     int left = stage * cellWidth;
                     int width = stage == 7 ? referenceSheet.getWidth() - left : cellWidth;
-                    Bitmap icon = Bitmap.createBitmap(referenceSheet, left, 0, width,
+                    modelTwoSource = Bitmap.createBitmap(referenceSheet, left, 0, width,
                             referenceSheet.getHeight());
-                    setImageBitmap(icon);
-                    setColorFilter(Color.WHITE);
+                    renderModelTwoIcon(tint, tint != Color.BLACK);
                 }
             } catch (Exception ignored) { }
         }

@@ -308,7 +308,7 @@ final class PrayerTimesPanel {
 
         // Keep the title and location independent so the location never gets squeezed by the title.
         heading.addView(cleanText("Jadwal Sholat", 16, true), wrap());
-        TextView place = cleanText("Bandung & Sekitarnya", 9, true);
+        TextView place = cleanText("Bandung", 9, true);
         place.setSingleLine(true);
         place.setMaxLines(1);
         place.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
@@ -316,7 +316,7 @@ final class PrayerTimesPanel {
         FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(184), dp(22),
                 Gravity.TOP | Gravity.RIGHT);
         placeP.rightMargin = dp(8);
-        placeP.topMargin = dp(13);
+        placeP.topMargin = dp(11);
         header.addView(place, placeP);
 
         dateDay = cleanText("--", 10, false);
@@ -331,7 +331,7 @@ final class PrayerTimesPanel {
         ImageView mosque = new ImageView(activity);
         setMosqueFromReference(mosque);
         mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(34), dp(34),
+        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(39), dp(39),
                 Gravity.RIGHT | Gravity.BOTTOM);
         mosqueP.rightMargin = dp(2);
         mosqueP.bottomMargin = dp(3);
@@ -367,7 +367,7 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams progressP = new LinearLayout.LayoutParams(-1, dp(20));
         progressP.topMargin = 0;
         countdownCard.addView(progressTrack, progressP);
-        progressTrack.setTranslationY(-dp(4));
+        progressTrack.setTranslationY(-dp(7));
 
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
@@ -464,7 +464,7 @@ final class PrayerTimesPanel {
         TextView view = text(value, size, 0xFF17211D, true);
         view.setTypeface(loadSfProRoundedTypeface());
         view.setPadding(dp(3), dp(1), dp(4), dp(1));
-        view.setShadowLayer(dp(1.8f), 0f, 0f, 0xBFFFFFFF);
+        view.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT);
         return view;
     }
 
@@ -531,25 +531,9 @@ final class PrayerTimesPanel {
             int inset = dp(1);
             icon = icon.mutate();
             icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
-            // Soft white halo behind each symbol, followed by the darker icon for contrast.
-            icon.setTint(0x66FFFFFF);
-            float glow = dp(0.65f);
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx == 0 && dy == 0) continue;
-                    canvas.save();
-                    canvas.translate(dx * glow, dy * glow);
-                    icon.draw(canvas);
-                    canvas.restore();
-                }
-            }
+            // Draw each icon once, without halo or shadow, for a clean flat appearance.
             icon.setTint(tint);
             icon.draw(canvas);
-            // Slightly offset duplicate pass makes thin vector strokes clearer at TV distance.
-            canvas.save();
-            canvas.translate(dp(0.8f), 0);
-            icon.draw(canvas);
-            canvas.restore();
         }
     }
 

@@ -68,10 +68,10 @@ final class PrayerTimesPanel {
                 .getInt("prayer_panel_design", 1) == 2;
         // Model 2 is a compact landscape card; Model 1 keeps its original footprint unchanged.
         int panelWidth = modelTwo
-                ? Math.min((int)(270f * dm.density), (int)(screenWidth * .25f))
+                ? Math.min((int)(258f * dm.density), (int)(screenWidth * .24f))
                 : Math.min((int)(330f * dm.density), (int)(screenWidth * .32f));
         int panelHeight = modelTwo
-                ? Math.min((int)(490f * dm.density), (int)(screenHeight * .70f))
+                ? Math.min((int)(468f * dm.density), (int)(screenHeight * .67f))
                 : (int)(screenHeight * .58f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(panelWidth, panelHeight,
                 ("left".equals(position) ? Gravity.START : Gravity.END) | Gravity.CENTER_VERTICAL);
@@ -80,6 +80,7 @@ final class PrayerTimesPanel {
         if ("left".equals(position)) lp.leftMargin = (int)(56f * dm.density);
         else lp.rightMargin = (int)(56f * dm.density);
         root.addView(p.panel, lp);
+        if (modelTwo) p.panel.setTranslationY((int)(28f * dm.density));
         p.panel.setVisibility(enabled && !p.positionHidden ? View.VISIBLE : View.GONE);
         if (enabled) {
             p.registerNetworkCallback();
@@ -286,30 +287,28 @@ final class PrayerTimesPanel {
         panel.setPadding(dp(13), dp(12), dp(13), dp(12));
         panel.setClipChildren(false);
         panel.setClipToPadding(false);
-        GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0x72DCEAF1, 0x68F4DCCF, 0x70D9C8DE});
-        glass.setCornerRadius(dp(28));
-        glass.setStroke(dp(1), 0x66FFFFFF);
-        panel.setBackground(glass);
+        panel.setBackground(liquidGlass(
+                new int[]{0x48DCEAF1, 0x38F4DCCF, 0x42D9C8DE}, dp(28), 0x88FFFFFF));
         panel.setElevation(dp(8));
 
         FrameLayout header = new FrameLayout(activity);
-        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(62)));
+        panel.addView(header, new LinearLayout.LayoutParams(-1, dp(66)));
         LinearLayout heading = new LinearLayout(activity);
         heading.setOrientation(LinearLayout.VERTICAL);
         heading.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams headingP = new FrameLayout.LayoutParams(-1, -1, Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        headingP.rightMargin = dp(42);
+        headingP.rightMargin = dp(38);
         header.addView(heading, headingP);
 
         LinearLayout titleLine = new LinearLayout(activity);
         titleLine.setOrientation(LinearLayout.HORIZONTAL);
         titleLine.setGravity(Gravity.CENTER_VERTICAL);
         heading.addView(titleLine, wrap());
-        titleLine.addView(cleanText("Jadwal Sholat", 18, true), wrap());
-        TextView place = cleanText("Bandung & Sekitarnya", 9, false);
+        titleLine.addView(cleanText("Jadwal Sholat", 16, true), wrap());
+        TextView place = cleanText("Bandung & Sekitarnya", 8, false);
+        place.setSingleLine(true);
         LinearLayout.LayoutParams placeP = wrap();
-        placeP.leftMargin = dp(7);
+        placeP.leftMargin = dp(5);
         titleLine.addView(place, placeP);
 
         dateDay = cleanText("--", 10, false);
@@ -324,21 +323,19 @@ final class PrayerTimesPanel {
         ImageView mosque = new ImageView(activity);
         mosque.setImageResource(R.drawable.prayer_icon_mosque);
         mosque.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(32), dp(32),
-                Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams mosqueP = new FrameLayout.LayoutParams(dp(30), dp(30),
+                Gravity.RIGHT | Gravity.BOTTOM);
         mosqueP.rightMargin = dp(3);
+        mosqueP.bottomMargin = dp(5);
         header.addView(mosque, mosqueP);
 
         LinearLayout countdownCard = new LinearLayout(activity);
         countdownCard.setOrientation(LinearLayout.VERTICAL);
         countdownCard.setGravity(Gravity.CENTER);
-        countdownCard.setPadding(dp(8), dp(7), dp(8), dp(7));
-        GradientDrawable countdownBg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0x78F8F0EC, 0x70EADFD9});
-        countdownBg.setCornerRadius(dp(22));
-        countdownBg.setStroke(dp(1), 0x55FFFFFF);
-        countdownCard.setBackground(countdownBg);
-        LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.76f);
+        countdownCard.setPadding(dp(8), dp(11), dp(8), dp(8));
+        countdownCard.setBackground(liquidGlass(
+                new int[]{0x52FFFFFF, 0x35F3EAE5, 0x2EDDE9F4}, dp(22), 0x66FFFFFF));
+        LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.94f);
         countdownP.topMargin = dp(5);
         panel.addView(countdownCard, countdownP);
         nextName = cleanText("Selanjutnya", 13, true);
@@ -357,19 +354,16 @@ final class PrayerTimesPanel {
         nextPrayerTime = cleanText("--:--", 1, false);
         nextPrayerTime.setVisibility(View.GONE);
         progressTrack = new ProgressTrack(activity);
-        LinearLayout.LayoutParams progressP = new LinearLayout.LayoutParams(-1, dp(17));
-        progressP.topMargin = dp(5);
+        LinearLayout.LayoutParams progressP = new LinearLayout.LayoutParams(-1, dp(20));
+        progressP.topMargin = dp(3);
         countdownCard.addView(progressTrack, progressP);
 
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
         schedule.setPadding(dp(8), dp(7), dp(8), dp(7));
-        GradientDrawable scheduleBg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x70F6E7E0, 0x68D9D6E2});
-        scheduleBg.setCornerRadius(dp(22));
-        scheduleBg.setStroke(dp(1), 0x55FFFFFF);
-        schedule.setBackground(scheduleBg);
-        LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.50f);
+        schedule.setBackground(liquidGlass(
+                new int[]{0x45F6E7E0, 0x34D9D6E2, 0x2ADDEBFA}, dp(22), 0x55FFFFFF));
+        LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.35f);
         scheduleP.topMargin = dp(6);
         panel.addView(schedule, scheduleP);
         for (int i = 0; i < names.length; i++) {
@@ -417,7 +411,7 @@ final class PrayerTimesPanel {
         private float d(float value) { return value * getResources().getDisplayMetrics().density; }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float y = getHeight() / 2f - d(1.5f);
+            float y = getHeight() / 2f;
             float left = d(6), right = getWidth() - d(6);
             float x = left + (right - left) * progress;
             paint.setStyle(Paint.Style.STROKE);
@@ -472,6 +466,19 @@ final class PrayerTimesPanel {
             icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
             icon.draw(canvas);
         }
+    }
+
+    /** Layered translucent surface with a soft top reflection for a liquid-glass finish. */
+    private android.graphics.drawable.Drawable liquidGlass(int[] colors, int radiusPx, int strokeColor) {
+        GradientDrawable base = new GradientDrawable(GradientDrawable.Orientation.TL_BR, colors);
+        base.setCornerRadius(radiusPx);
+        base.setStroke(dp(1), strokeColor);
+        GradientDrawable reflection = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x48FFFFFF, 0x1CFFFFFF, 0x05FFFFFF, 0x12C8E8FF});
+        reflection.setCornerRadius(radiusPx);
+        reflection.setStroke(dp(1), 0x22FFFFFF);
+        return new android.graphics.drawable.LayerDrawable(
+                new android.graphics.drawable.Drawable[]{base, reflection});
     }
 
     private LinearLayout glassCard() {

@@ -313,10 +313,10 @@ final class PrayerTimesPanel {
         place.setMaxLines(1);
         place.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         place.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
-        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(158), dp(20),
+        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(184), dp(22),
                 Gravity.TOP | Gravity.RIGHT);
         placeP.rightMargin = dp(8);
-        placeP.topMargin = dp(8);
+        placeP.topMargin = dp(13);
         header.addView(place, placeP);
 
         dateDay = cleanText("--", 10, false);
@@ -367,7 +367,7 @@ final class PrayerTimesPanel {
         LinearLayout.LayoutParams progressP = new LinearLayout.LayoutParams(-1, dp(20));
         progressP.topMargin = 0;
         countdownCard.addView(progressTrack, progressP);
-        progressTrack.setTranslationY(-dp(2));
+        progressTrack.setTranslationY(-dp(4));
 
         LinearLayout schedule = new LinearLayout(activity);
         schedule.setOrientation(LinearLayout.VERTICAL);
@@ -463,7 +463,8 @@ final class PrayerTimesPanel {
     private TextView cleanText(String value, int size, boolean bold) {
         TextView view = text(value, size, 0xFF17211D, true);
         view.setTypeface(loadSfProRoundedTypeface());
-        view.setShadowLayer(dp(1.4f), 0f, dp(1), 0xA6FFFFFF);
+        view.setPadding(dp(3), dp(1), dp(4), dp(1));
+        view.setShadowLayer(dp(1.8f), 0f, 0f, 0xBFFFFFFF);
         return view;
     }
 
@@ -529,12 +530,24 @@ final class PrayerTimesPanel {
             if (icon == null) return;
             int inset = dp(1);
             icon = icon.mutate();
-            icon.setTint(tint);
             icon.setBounds(inset, inset, getWidth() - inset, getHeight() - inset);
-            // A tiny second pass thickens thin vector strokes for better TV-distance legibility.
+            // Soft white halo behind each symbol, followed by the darker icon for contrast.
+            icon.setTint(0x66FFFFFF);
+            float glow = dp(0.65f);
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0) continue;
+                    canvas.save();
+                    canvas.translate(dx * glow, dy * glow);
+                    icon.draw(canvas);
+                    canvas.restore();
+                }
+            }
+            icon.setTint(tint);
             icon.draw(canvas);
+            // Slightly offset duplicate pass makes thin vector strokes clearer at TV distance.
             canvas.save();
-            canvas.translate(dp(0.55f), 0);
+            canvas.translate(dp(0.8f), 0);
             icon.draw(canvas);
             canvas.restore();
         }

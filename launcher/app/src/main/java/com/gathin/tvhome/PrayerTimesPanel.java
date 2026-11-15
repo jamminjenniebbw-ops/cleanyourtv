@@ -10,7 +10,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.BlurMaskFilter;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Typeface;
@@ -524,9 +523,11 @@ final class PrayerTimesPanel {
         private void renderModelTwoIcon(int color, boolean withShadow) {
             if (modelTwoSource == null) return;
             try {
-                int blur = withShadow ? dp(3) : 0;
-                int offset = withShadow ? dp(1) : 0;
-                int pad = blur * 2 + offset;
+                // Bitmap mask filters are not consistently applied by Android's hardware
+                // renderer. Build the shadow from several translucent, offset alpha copies
+                // instead, so it is visible on both hardware- and software-rendered TVs.
+                int outer = withShadow ? dp(4) : 0;
+                int pad = outer + (withShadow ? dp(1) : 0);
                 Bitmap composed = Bitmap.createBitmap(
                         modelTwoSource.getWidth() + pad * 2,
                         modelTwoSource.getHeight() + pad * 2,
@@ -534,9 +535,19 @@ final class PrayerTimesPanel {
                 Canvas canvas = new Canvas(composed);
                 if (withShadow) {
                     Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-                    shadowPaint.setColorFilter(new PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN));
-                    shadowPaint.setMaskFilter(new BlurMaskFilter(Math.max(1f, dp(2.2f)), BlurMaskFilter.Blur.NORMAL));
-                    canvas.drawBitmap(modelTwoSource, pad, pad + offset, shadowPaint);
+                    // Two rings create a soft-looking falloff rather than a hard offset.
+                    shadowPaint.setColorFilter(new PorterDuffColorFilter(0x55000000, PorterDuff.Mode.SRC_IN));
+                    int near = Math.max(1, dp(1));
+                    int far = Math.max(2, dp(3));
+                    int[][] directions = {{-1,0},{1,0},{0,-1},{0,1},{-1,-1},{1,-1},{-1,1},{1,1}};
+                    shadowPaint.setColorFilter(new PorterDuffColorFilter(0x40000000, PorterDuff.Mode.SRC_IN));
+                    for (int[] dir : directions) {
+                        canvas.drawBitmap(modelTwoSource, pad + dir[0] * far, pad + dir[1] * far, shadowPaint);
+                    }
+                    shadowPaint.setColorFilter(new PorterDuffColorFilter(0x65000000, PorterDuff.Mode.SRC_IN));
+                    for (int[] dir : directions) {
+                        canvas.drawBitmap(modelTwoSource, pad + dir[0] * near, pad + dir[1] * near, shadowPaint);
+                    }
                 }
                 Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
                 iconPaint.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));

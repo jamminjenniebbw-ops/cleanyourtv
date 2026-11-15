@@ -288,7 +288,7 @@ final class PrayerTimesPanel {
         panel.setClipChildren(false);
         panel.setClipToPadding(false);
         panel.setBackground(liquidGlass(
-                new int[]{0x38DCEAF1, 0x2AF4DCCF, 0x32D9C8DE}, dp(28), 0x70FFFFFF));
+                new int[]{0x20DCEAF1, 0x18F4DCCF, 0x20D9C8DE}, dp(28), 0x55FFFFFF));
         panel.setElevation(dp(8));
 
         FrameLayout header = new FrameLayout(activity);
@@ -297,22 +297,21 @@ final class PrayerTimesPanel {
         heading.setOrientation(LinearLayout.VERTICAL);
         heading.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams headingP = new FrameLayout.LayoutParams(-1, -1, Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        headingP.rightMargin = dp(38);
+        headingP.rightMargin = dp(42);
         header.addView(heading, headingP);
 
-        LinearLayout titleLine = new LinearLayout(activity);
-        titleLine.setOrientation(LinearLayout.HORIZONTAL);
-        titleLine.setGravity(Gravity.CENTER_VERTICAL);
-        heading.addView(titleLine, wrap());
-        titleLine.addView(cleanText("Jadwal Sholat", 16, true), wrap());
-        TextView place = cleanText("Bandung & Sekitarnya", 8, true);
+        // Keep the title and location independent so the location never gets squeezed by the title.
+        heading.addView(cleanText("Jadwal Sholat", 16, true), wrap());
+        TextView place = cleanText("Bandung & Sekitarnya", 9, true);
         place.setSingleLine(true);
         place.setMaxLines(1);
         place.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         place.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
-        LinearLayout.LayoutParams placeP = new LinearLayout.LayoutParams(0, -2, 1f);
-        placeP.leftMargin = dp(5);
-        titleLine.addView(place, placeP);
+        FrameLayout.LayoutParams placeP = new FrameLayout.LayoutParams(dp(142), dp(20),
+                Gravity.TOP | Gravity.RIGHT);
+        placeP.rightMargin = dp(1);
+        placeP.topMargin = dp(1);
+        header.addView(place, placeP);
 
         dateDay = cleanText("--", 10, false);
         LinearLayout.LayoutParams gregorianP = wrap();
@@ -338,7 +337,7 @@ final class PrayerTimesPanel {
         countdownCard.setGravity(Gravity.CENTER);
         countdownCard.setPadding(dp(8), dp(11), dp(8), dp(8));
         countdownCard.setBackground(liquidGlass(
-                new int[]{0x42FFFFFF, 0x2AF3EAE5, 0x25DDE9F4}, dp(22), 0x55FFFFFF));
+                new int[]{0x24FFFFFF, 0x1CF3EAE5, 0x18DDE9F4}, dp(22), 0x44FFFFFF));
         LinearLayout.LayoutParams countdownP = new LinearLayout.LayoutParams(-1, 0, 0.94f);
         countdownP.topMargin = dp(5);
         panel.addView(countdownCard, countdownP);
@@ -369,7 +368,7 @@ final class PrayerTimesPanel {
         schedule.setOrientation(LinearLayout.VERTICAL);
         schedule.setPadding(dp(8), dp(7), dp(8), dp(7));
         schedule.setBackground(liquidGlass(
-                new int[]{0x36F6E7E0, 0x2AD9D6E2, 0x22DDEBFA}, dp(22), 0x44FFFFFF));
+                new int[]{0x20F6E7E0, 0x19D9D6E2, 0x16DDEBFA}, dp(22), 0x38FFFFFF));
         LinearLayout.LayoutParams scheduleP = new LinearLayout.LayoutParams(-1, 0, 1.35f);
         scheduleP.topMargin = dp(6);
         panel.addView(schedule, scheduleP);
@@ -403,7 +402,8 @@ final class PrayerTimesPanel {
 
     private TextView cleanText(String value, int size, boolean bold) {
         TextView view = text(value, size, 0xFF17211D, true);
-        view.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        // Android's rounded system sans is the closest built-in match to San Francisco Rounded.
+        view.setTypeface(Typeface.create("sans-serif-rounded", Typeface.BOLD));
         view.setShadowLayer(dp(1.4f), 0f, dp(1), 0xA6FFFFFF);
         return view;
     }

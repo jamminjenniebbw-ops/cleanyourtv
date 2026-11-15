@@ -340,7 +340,9 @@ final class PrayerTimesPanel {
         panel.addView(countdownCard, countdownP);
         nextName = cleanText("Selanjutnya", 13, true);
         nextName.setGravity(Gravity.CENTER);
-        countdownCard.addView(nextName, wrap());
+        LinearLayout.LayoutParams nextNameP = wrap();
+        nextNameP.topMargin = dp(4);
+        countdownCard.addView(nextName, nextNameP);
         nextPrayerTitle = cleanText("Menuju --", 18, false);
         nextPrayerTitle.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams targetP = wrap();
